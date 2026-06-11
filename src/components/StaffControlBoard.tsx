@@ -39,7 +39,9 @@ import {
   MapPin,
   Key,
   ShieldCheck,
-  User as UserIcon
+  User as UserIcon,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -596,7 +598,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   const loadLogs = async () => {
     setLogsLoading(true);
     try {
-      const targetQueryMobile = isSuperAdmin ? undefined : (user.creator_mobile || user.mobile);
+      const targetQueryMobile = isSuperAdmin 
+        ? undefined 
+        : (user.role === "ADMIN" ? user.mobile : (user.creator_mobile || user.mobile));
       const history = await FirebaseService.getSearchHistories(targetQueryMobile);
       setLogsList(history.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (e) {
@@ -1622,63 +1626,72 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   </div>
                 </div>
 
-                {selectedUserLogsMobile === null ? (
-                  // 1. List of users ordered by latest query activity
-                  <div className="space-y-6">
-                    <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-[#1A1D24] p-4 rounded-2xl border border-white/5 shadow-xl">
-                      <div className="relative max-w-md w-full">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-                          <Filter className="h-4 w-4" />
-                        </span>
-                        <input
-                          type="text"
-                          value={logsFilter}
-                          onChange={(e) => setLogsFilter(e.target.value)}
-                          placeholder="Filter targets or ID patterns..."
-                          className="block w-full rounded-xl border border-white/10 bg-[#0A0D14] py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
-                        />
-                      </div>
+                // 1. List of users ordered by latest query activity
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between bg-[#1A1D24] p-4 rounded-2xl border border-white/5 shadow-xl">
+                    <div className="relative max-w-md w-full">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
+                        <Filter className="h-4 w-4" />
+                      </span>
+                      <input
+                        type="text"
+                        value={logsFilter}
+                        onChange={(e) => setLogsFilter(e.target.value)}
+                        placeholder="Filter targets or ID patterns..."
+                        className="block w-full rounded-xl border border-white/10 bg-[#0A0D14] py-3 pl-11 pr-4 text-sm text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                      />
                     </div>
+                  </div>
 
-                    {logsLoading ? (
-                      <div className="py-16 text-center text-slate-500 flex flex-col items-center justify-center gap-3 bg-[#1A1D24] border border-white/5 rounded-2xl shadow-xl">
-                        <Loader2 className="h-6 w-6 animate-spin text-indigo-400" /> 
-                        <span className="text-sm font-medium tracking-tight">Decoupling telemetry matrices...</span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-4">
-                        {filteredUserWiseList.length > 0 ? (
-                          filteredUserWiseList.map((item) => {
-                            const hasSearches = item.logsCount > 0;
-                            return (
-                              <div 
-                                key={item.user.mobile}
-                                onClick={() => hasSearches && setSelectedUserLogsMobile(item.user.mobile)}
-                                className={`flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl border transition-all ${
-                                  hasSearches 
-                                    ? "bg-[#1A1D24] border-white/5 hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer" 
-                                    : "bg-[#0A0D14] border-white/5 opacity-60"
-                                }`}
-                              >
-                                <div className="space-y-3 flex-1">
+                  {logsLoading ? (
+                    <div className="py-16 text-center text-slate-500 flex flex-col items-center justify-center gap-3 bg-[#1A1D24] border border-white/5 rounded-2xl shadow-xl">
+                      <Loader2 className="h-6 w-6 animate-spin text-indigo-400" /> 
+                      <span className="text-sm font-medium tracking-tight">Decoupling telemetry matrices...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {filteredUserWiseList.length > 0 ? (
+                        filteredUserWiseList.map((item) => {
+                          const hasSearches = item.logsCount > 0;
+                          const isExpanded = selectedUserLogsMobile === item.user.mobile;
+                          const firstName = item.user.name ? item.user.name.split(" ")[0] : "Agent";
+
+                          return (
+                            <div 
+                              key={item.user.mobile}
+                              onClick={() => hasSearches && setSelectedUserLogsMobile(isExpanded ? null : item.user.mobile)}
+                              className={`flex flex-col p-5 rounded-2xl border transition-all ${
+                                hasSearches 
+                                  ? "bg-[#1A1D24] border-white/5 hover:border-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer" 
+                                  : "bg-[#0A0D14] border-white/5 opacity-60"
+                              }`}
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+                                <div className="space-y-3 flex-1 min-w-0">
                                   <div className="flex items-center gap-3 flex-wrap">
-                                    <div className="flex -space-x-2">
+                                    <div className="flex -space-x-2 shrink-0">
                                       <div className={`w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-xs font-bold ${hasSearches ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-500'}`}>
-                                        {item.user.name.charAt(0).toUpperCase()}
+                                        {firstName.charAt(0).toUpperCase()}
                                       </div>
                                     </div>
-                                    <h3 className="text-base font-bold text-white tracking-tight">{item.user.name}</h3>
-                                    <span className="bg-white/5 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-white/10">
+                                    <h3 className={`text-sm font-extrabold tracking-wide uppercase px-2.5 py-1 rounded-lg ${
+                                      hasSearches 
+                                        ? "text-indigo-400 bg-indigo-500/15 border border-indigo-500/30 shadow-sm shadow-indigo-500/10" 
+                                        : "text-slate-400 bg-[#0A0D14]"
+                                    }`}>
+                                      {firstName}
+                                    </h3>
+                                    <span className="bg-white/5 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border border-white/10 shrink-0">
                                       ID: {item.user.mobile}
                                     </span>
                                     {hasSearches && (
-                                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full flex gap-1 uppercase tracking-wider">
+                                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full flex gap-1 uppercase tracking-wider shrink-0">
                                         Active Traces Present
                                       </span>
                                     )}
                                   </div>
                                   
-                                  {item.latestLog && (
+                                  {item.latestLog && !isExpanded && (
                                     <div className="bg-[#0A0D14] border border-white/5 p-3 rounded-xl flex items-center justify-between gap-4 w-full sm:max-w-md">
                                       <div className="space-y-0.5">
                                         <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Latest Signature</p>
@@ -1698,116 +1711,101 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                   )}
                                 </div>
 
-                                <div className="mt-4 sm:mt-0 flex shrink-0 items-center justify-end">
+                                <div className="mt-2 sm:mt-0 flex shrink-0 items-center justify-end gap-3">
                                   {hasSearches && (
-                                    <button className="text-xs font-bold text-white group flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 active:scale-95">
-                                      <Eye className="h-4 w-4" /> Expand Matrix
-                                      <span className="bg-[#0A0D14]/50 border border-white/10 text-[10px] px-1.5 py-0.5 rounded text-indigo-100">{item.logsCount}</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="py-16 bg-[#1A1D24] border border-dashed border-white/10 rounded-2xl text-center flex flex-col items-center justify-center">
-                            <div className="w-16 h-16 rounded-full bg-[#0A0D14] border border-white/5 flex items-center justify-center mb-4 text-slate-600">
-                              <AlertCircle className="w-8 h-8" />
-                            </div>
-                            <p className="text-sm font-bold text-white tracking-tight">No Matching Telemetry</p>
-                            <p className="text-xs text-slate-500 mt-2">Adjust your filtering parameters to reveal connected nodes.</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  // 2. Clicked target user detailed history
-                  <div className="space-y-6 animate-fade-in pb-10">
-                    {(() => {
-                      const targetUserItem = sortedUsersWithHistory.find(i => i.user.mobile === selectedUserLogsMobile);
-                      if (!targetUserItem) return null;
-                      return (
-                        <div className="space-y-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-6 gap-4">
-                            <div>
-                              <button
-                                onClick={() => setSelectedUserLogsMobile(null)}
-                                className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors mb-4 group"
-                              >
-                                <span className="p-1 rounded-lg bg-white/5 group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-colors">
-                                  ←
-                                </span>
-                                Retract to Node Directory
-                              </button>
-                              <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full border border-indigo-500/30 bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                                  {targetUserItem.user.name.charAt(0).toUpperCase()}
-                                </div>
-                                Telemetry Manifest: {targetUserItem.user.name}
-                              </h2>
-                              <p className="text-xs text-slate-500 mt-2 ml-13 flex items-center gap-3">
-                                <span className="bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Node: {targetUserItem.user.mobile}</span>
-                                <span>{targetUserItem.logsCount} Registered Traces</span>
-                              </p>
-                            </div>
-                            {isSuperAdmin && (
-                              <button
-                                onClick={() => {
-                                  confirmAction(
-                                    "Purge Node Traces",
-                                    "Purge all telemetry traces for this specific node? This cannot be undone.",
-                                    () => handleClearLogs(targetUserItem.user.mobile)
-                                  );
-                                }}
-                                className="px-4 py-2 text-xs font-bold text-rose-400 border border-rose-500/20 rounded-lg hover:bg-rose-500/10 transition-colors relative shrink-0"
-                              >
-                                Purge Node Traces
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-2 mb-4">Chronological Traces</h3>
-                            {targetUserItem.logs.map((log, index) => (
-                              <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#1A1D24] border border-white/5 p-4 rounded-xl hover:border-white/10 transition-colors gap-4">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 rounded-xl bg-[#0A0D14] border border-white/5 flex items-center justify-center text-slate-500">
-                                    <Car className="w-5 h-5" />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-3">
-                                      <h4 className="text-base font-bold text-white font-mono tracking-wider select-all">{log.vehicle_number}</h4>
-                                      <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 border border-slate-700 px-1.5 rounded bg-slate-800">Target Hit</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 font-mono">
-                                      Model Configuration: <span className="text-slate-300 font-semibold">{log.model || "Unknown Sector Matrix"}</span>
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="text-left sm:text-right pt-4 border-t border-white/5 sm:border-0 sm:pt-0 flex items-center justify-between sm:justify-end gap-6">
-                                  <p className="text-xs text-slate-300 font-mono flex items-center gap-1.5">
-                                    <Clock className="h-3.5 w-3.5 text-indigo-400" />
-                                    {new Date(log.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'medium' })}
-                                  </p>
-                                  {(isSuperAdmin || user.role === "ADMIN") && (
                                     <button 
-                                      onClick={() => handleDeleteLog(log.id)}
-                                      className="text-slate-500 hover:text-rose-400 transition-colors p-2 rounded hover:bg-rose-500/10"
-                                      title="Delete Trace"
+                                      className="text-xs font-bold text-white group flex items-center gap-2 bg-[#12141C] hover:bg-slate-800 px-4 py-2 rounded-xl transition-all border border-white/10 active:scale-95"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedUserLogsMobile(isExpanded ? null : item.user.mobile);
+                                      }}
                                     >
-                                      <X className="w-4 h-4" />
+                                      {isExpanded ? (
+                                        <>
+                                          <ChevronUp className="h-4 w-4" /> Hide Searches
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ChevronDown className="h-4 w-4" /> Dropdown Log
+                                        </>
+                                      )}
+                                      <span className="bg-[#0A0D14]/50 border border-white/10 text-[10px] px-1.5 py-0.5 rounded text-indigo-400 font-mono font-bold ml-1">{item.logsCount}</span>
                                     </button>
                                   )}
                                 </div>
                               </div>
-                            ))}
+
+                              {/* Collapsible Dropdown for all searches */}
+                              {isExpanded && (
+                                <div className="mt-4 pt-4 border-t border-white/5 space-y-3 w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-between px-1 pb-1">
+                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                      <History className="h-3.5 w-3.5 text-indigo-400" /> All Search Histories
+                                    </h4>
+                                    {isSuperAdmin && (
+                                      <button
+                                        onClick={() => {
+                                          confirmAction(
+                                            "Purge Node Traces",
+                                            "Purge all telemetry traces for this specific node? This cannot be undone.",
+                                            () => handleClearLogs(item.user.mobile)
+                                          );
+                                        }}
+                                        className="text-[10px] font-bold text-rose-400 border border-rose-500/10 hover:border-rose-500/30 px-2 py-1 rounded bg-rose-500/5 hover:bg-rose-500/10 transition-all animate-pulse"
+                                      >
+                                        Purge All Local Traces
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                    {item.logs.map((log, index) => (
+                                      <div key={log.id || index} className="flex flex-col sm:flex-row sm:items-center justify-between bg-[#0A0D14] border border-white/5 p-3.5 rounded-xl hover:border-indigo-500/20 transition-all gap-4">
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                          <div className="w-9 h-9 rounded-lg bg-[#12141C] border border-white/5 flex items-center justify-center text-slate-500 shrink-0">
+                                            <Car className="w-4.5 h-4.5 text-indigo-400" />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-bold text-white font-mono tracking-wider truncate select-all">{log.vehicle_number}</p>
+                                            <p className="text-[10px] text-slate-500 font-mono truncate">
+                                              Model Target: <span className="text-slate-400">{log.model || "Unknown Unit"}</span>
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                                          <span className="text-xs text-slate-400 font-mono flex items-center gap-1.5">
+                                            <Clock className="h-3.5 w-3.5 text-indigo-400" />
+                                            {new Date(log.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                          </span>
+                                          {(isSuperAdmin || user.role === "ADMIN") && (
+                                            <button 
+                                              onClick={() => handleDeleteLog(log.id)}
+                                              className="text-slate-600 hover:text-rose-400 transition-colors p-1.5 rounded hover:bg-rose-500/10"
+                                              title="Delete Trace"
+                                            >
+                                              <X className="w-4 h-4" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="py-16 bg-[#1A1D24] border border-dashed border-white/10 rounded-2xl text-center flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 rounded-full bg-[#0A0D14] border border-white/5 flex items-center justify-center mb-4 text-slate-600">
+                            <AlertCircle className="w-8 h-8" />
                           </div>
+                          <p className="text-sm font-bold text-white tracking-tight">No Matching Telemetry</p>
+                          <p className="text-xs text-slate-500 mt-2">Adjust your filtering parameters to reveal connected nodes.</p>
                         </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })()}

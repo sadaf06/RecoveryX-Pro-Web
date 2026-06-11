@@ -201,7 +201,7 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
         vehicle_number: vehicle.registration_number,
         model: vehicle.model,
         timestamp: new Date().toISOString(),
-        creator_mobile: targetCreatorMobile || user.mobile
+        creator_mobile: user.creator_mobile || user.mobile
       };
       await FirebaseService.addSearchHistory(historyLog);
     } catch (e) {
