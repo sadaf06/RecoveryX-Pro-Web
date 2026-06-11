@@ -25,8 +25,8 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d dist"
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
