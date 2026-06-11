@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net: Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY DEFINITIONS & SCHEMA GUARDS ---
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'mobile', 'password', 'role', 'status', 'is_first_time', 'creator_mobile']) &&
+             data.name is string && data.name.size() <= 128 &&
+             data.mobile is string && data.mobile.size() <= 15 &&
+             data.password is string && data.password.size() <= 128 &&
+             data.role in ['SUPER_ADMIN', 'ADMIN', 'OFFICE_STAFF', 'NORMAL_USER'] &&
+             data.status in ['ACTIVE', 'DISABLED'] &&
+             data.creator_mobile is string && data.creator_mobile.size() <= 128;
+    }
+
+    function isValidVehicle(data) {
+      return data.keys().hasAll(['registration_number', 'owner', 'model', 'status', 'bank_name', 'creator_mobile', 'file_name']) &&
+             data.registration_number is string && data.registration_number.size() <= 30 &&
+             data.owner is string && data.owner.size() <= 128 &&
+             data.model is string && data.model.size() <= 128 &&
+             data.status is string && data.status.size() <= 30 &&
+             data.bank_name is string && data.bank_name.size() <= 128 &&
+             data.creator_mobile is string && data.creator_mobile.size() <= 30 &&
+             data.file_name is string && data.file_name.size() <= 128;
+    }
+
+    function isValidUploadedFile(data) {
+      return data.keys().hasAll(['file_name', 'admin_mobile', 'uploaded_at', 'record_count']) &&
+             data.file_name is string && data.file_name.size() <= 128 &&
+             data.admin_mobile is string && data.admin_mobile.size() <= 30 &&
+             data.record_count is int;
+    }
+
+    function isValidSearchHistory(data) {
+      return data.keys().hasAll(['user_mobile', 'user_name', 'vehicle_number', 'model', 'timestamp', 'creator_mobile']) &&
+             data.user_mobile is string && data.user_mobile.size() <= 30 &&
+             data.user_name is string && data.user_name.size() <= 128 &&
+             data.vehicle_number is string && data.vehicle_number.size() <= 30 &&
+             data.model is string && data.model.size() <= 128 &&
+             data.timestamp is string && data.timestamp.size() <= 64 &&
+             data.creator_mobile is string && data.creator_mobile.size() <= 30;
+    }
+
+    function isValidFieldPermissions(data) {
+      return data.keys().hasAll(['role_string', 'role', 'show_customer_name', 'show_vehicle_number', 'show_bank_name', 'show_pos', 'show_emi', 'show_engine_number', 'show_chassis_number', 'show_confirmer_name', 'show_loan_no']) &&
+             data.role_string is string && data.role_string.size() <= 128 &&
+             data.role == "NORMAL_USER" &&
+             data.show_customer_name is bool &&
+             data.show_vehicle_number is bool &&
+             data.show_bank_name is bool &&
+             data.show_pos is bool &&
+             data.show_emi is bool &&
+             data.show_engine_number is bool &&
+             data.show_chassis_number is bool &&
+             data.show_confirmer_name is bool &&
+             data.show_loan_no is bool;
+    }
+
+    // --- COLLECTION MATCHES ---
+
+    // 1. Users Collection rules
+    match /users/{mobile} {
+      allow read: if true;
+      allow create, update: if isValidUser(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 2. Vehicles Collection rules
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow create, update: if isValidVehicle(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 3. Uploaded Files Collection rules
+    match /uploaded_files/{fileId} {
+      allow read: if true;
+      allow create, update: if isValidUploadedFile(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 4. Search Histories Collection rules
+    match /search_histories/{historyId} {
+      allow read: if true;
+      allow create, update: if isValidSearchHistory(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 5. Field Permissions Collection rules
+    match /field_permissions/{permId} {
+      allow read: if true;
+      allow create, update: if isValidFieldPermissions(request.resource.data);
+      allow delete: if true;
+    }
+  }
+}

@@ -1,0 +1,215 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents an Agent, Staff, or Admin in the field collection system.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Full name of the user"
+        },
+        "mobile": {
+          "type": "string",
+          "description": "Unique mobile phone number of the user, acts as document ID"
+        },
+        "password": {
+          "type": "string",
+          "description": "Hashed or plain password string for security verification"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["SUPER_ADMIN", "ADMIN", "OFFICE_STAFF", "NORMAL_USER"],
+          "description": "System access level of the user"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "DISABLED"],
+          "description": "Accounts can be quickly disabled to block login access"
+        },
+        "registered_device_id": {
+          "type": "string",
+          "description": "Identifier of the browser session or mobile device"
+        },
+        "is_first_time": {
+          "type": "boolean",
+          "description": "True if user must change password during initial login"
+        },
+        "creator_mobile": {
+          "type": "string",
+          "description": "Mobile ID of the Admin who registered this staff/agent"
+        }
+      },
+      "required": ["name", "mobile", "password", "role", "status", "is_first_time", "creator_mobile"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Vehicle asset details used for tracing, search, and repossession status.",
+      "type": "object",
+      "properties": {
+        "registration_number": {
+          "type": "string",
+          "description": "Target registration plate number used for search queries"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Customer/Borrower owner name"
+        },
+        "model": {
+          "type": "string",
+          "description": "Compact or heavy vehicle model name"
+        },
+        "status": {
+          "type": "string",
+          "description": "Defaults to Active repossession instruction state"
+        },
+        "bank_name": {
+          "type": "string",
+          "description": "Credit bank or financial provider holding the asset interest"
+        },
+        "pos": {
+          "type": "string",
+          "description": "Point of sale bank branch location descriptor"
+        },
+        "emi": {
+          "type": "string",
+          "description": "Equated Monthly Installment amount due"
+        },
+        "engine_number": {
+          "type": "string",
+          "description": "Last digits of the motor block used as filter search"
+        },
+        "chassis_number": {
+          "type": "string",
+          "description": "Vehicle chassis alignment ID used as filter search"
+        },
+        "confirmer_name": {
+          "type": "string",
+          "description": "Bank manager or supervisor approving repossession"
+        },
+        "loan_no": {
+          "type": "string",
+          "description": "Active loan contract registration sequence"
+        },
+        "creator_mobile": {
+          "type": "string",
+          "description": "Creator primary admin mobile trace"
+        },
+        "file_name": {
+          "type": "string",
+          "description": "CSV/Excel import filename descriptor"
+        }
+      },
+      "required": ["registration_number", "owner", "model", "status", "bank_name", "creator_mobile", "file_name"]
+    },
+    "UploadedFile": {
+      "title": "UploadedFile",
+      "description": "Import catalogue tracking spreadsheet operations by supervisors.",
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "Spreadsheet filename"
+        },
+        "admin_mobile": {
+          "type": "string",
+          "description": "Admin identity launching the batch write"
+        },
+        "uploaded_at": {
+          "type": "number",
+          "description": "High-resolution millisecond long epoch timestamp"
+        },
+        "record_count": {
+          "type": "number",
+          "description": "Count of successful vehicle sheets lines appended"
+        }
+      },
+      "required": ["file_name", "admin_mobile", "uploaded_at", "record_count"]
+    },
+    "SearchHistory": {
+      "title": "SearchHistory",
+      "description": "Audit trail logging search runs by active field agents.",
+      "type": "object",
+      "properties": {
+        "user_mobile": {
+          "type": "string",
+          "description": "Agent mobile log"
+        },
+        "user_name": {
+          "type": "string",
+          "description": "Agent full name"
+        },
+        "vehicle_number": {
+          "type": "string",
+          "description": "Queried registration vehicle identification"
+        },
+        "model": {
+          "type": "string",
+          "description": "Queried car or truck model"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "ISO timestamp of query"
+        },
+        "creator_mobile": {
+          "type": "string",
+          "description": "Supervisor of the accessing agent"
+        }
+      },
+      "required": ["user_mobile", "user_name", "vehicle_number", "model", "timestamp", "creator_mobile"]
+    },
+    "FieldPermissions": {
+      "title": "FieldPermissions",
+      "description": "Boolean switches masking specific vehicle fields dynamically for agent groups.",
+      "type": "object",
+      "properties": {
+        "role_string": {
+          "type": "string",
+          "description": "Document composite identifier format e.g., 'NORMAL_USER_adminMobile'"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["NORMAL_USER"],
+          "description": "Identity role restricted"
+        },
+        "show_customer_name": { "type": "boolean" },
+        "show_vehicle_number": { "type": "boolean" },
+        "show_bank_name": { "type": "boolean" },
+        "show_pos": { "type": "boolean" },
+        "show_emi": { "type": "boolean" },
+        "show_engine_number": { "type": "boolean" },
+        "show_chassis_number": { "type": "boolean" },
+        "show_confirmer_name": { "type": "boolean" },
+        "show_loan_no": { "type": "boolean" }
+      },
+      "required": [
+        "role_string", "role", 
+        "show_customer_name", "show_vehicle_number", "show_bank_name", 
+        "show_pos", "show_emi", "show_engine_number", "show_chassis_number", 
+        "show_confirmer_name", "show_loan_no"
+      ]
+    }
+  },
+  "firestore": {
+    "users/{mobile}": {
+      "schema": "User",
+      "description": "User profiles indexed by mobile number key"
+    },
+    "vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Automotive ledger profiles under repossession lists"
+    },
+    "uploaded_files/{fileId}": {
+      "schema": "UploadedFile",
+      "description": "Excel/CSV import logs tracing operations"
+    },
+    "search_histories/{historyId}": {
+      "schema": "SearchHistory",
+      "description": "Interactive search auditing logs for regulatory enforcement"
+    },
+    "field_permissions/{permId}": {
+      "schema": "FieldPermissions",
+      "description": "Agent configuration masks controlling detail UI listings"
+    }
+  }
+}

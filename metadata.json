@@ -1,0 +1,6 @@
+{
+  "name": "Companion Hub",
+  "description": "Visual mirror and operational parity companion application securely linking field agent dashboards with administrative Excel import ledgers, masking controls and search registers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
