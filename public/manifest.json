@@ -1,0 +1,23 @@
+{
+  "name": "RecoveryX Pro",
+  "short_name": "RecoveryX Pro",
+  "description": "Secure Asset Registry & Field Operations Control Hub",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0D14",
+  "theme_color": "#4F46E5",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/192/000000/shield.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/000000/shield.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
