@@ -37,8 +37,9 @@ export default function App() {
   const [configAppId, setConfigAppId] = useState("");
   const [configSuccess, setConfigSuccess] = useState(false);
 
-  // Load session from localStorage on mount (persistent login)
+  // Load session from localStorage on mount (persistent login) and set document title
   useEffect(() => {
+    document.title = "RecoveryX Pro";
     const cachedUser = localStorage.getItem("ACTIVE_USER_SESSION");
     if (cachedUser) {
       try {
