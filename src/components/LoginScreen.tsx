@@ -120,22 +120,27 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-slate-100 selection:bg-teal-500 selection:text-slate-950 sm:px-6 lg:px-8">
+    <div className="flex h-full w-full items-center justify-center px-2 py-3 text-slate-100 selection:bg-indigo-500 selection:text-white">
+      <div className="absolute top-[-20%] left-[-20%] w-[70%] h-[70%] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[70%] h-[70%] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none" />
+
       <motion.div 
         initial={{ opacity: 0, y: 15 }} 
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md space-y-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-xl sm:p-8"
+        className="w-full max-w-md space-y-4 rounded-2xl liquid-glass p-5 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.6)] sm:p-7 relative overflow-hidden shrink-0"
       >
+        <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
+        
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 ring-1 ring-teal-500/20">
-            <Shield className="h-7 w-7" id="shield-logo" />
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+            <Shield className="h-5.5 w-5.5" id="shield-logo" />
           </div>
-          <h2 className="mt-6 font-sans text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            RecoveryX Pro Wb
+          <h2 className="mt-3.5 font-display text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+            RecoveryX Pro
           </h2>
-          <p className="mt-2 text-xs text-slate-400 font-mono tracking-wider uppercase">
-            Professional Fleet Management Identity System
+          <p className="mt-1 text-[8.5px] text-cyan-400/80 font-mono tracking-widest uppercase font-bold">
+            Professional Fleet Identity System
           </p>
         </div>
 
@@ -148,22 +153,22 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onSubmit={handleLogin} 
-              className="mt-8 space-y-5"
+              className="mt-4 space-y-3.5"
             >
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
                   Username or Mobile
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <Smartphone className="h-5 w-5" />
+                    <Smartphone className="h-4 w-4" />
                   </span>
                   <input
                     type="text"
                     id="login-mobile-input"
                     value={usernameOrMobile}
                     onChange={(e) => setUsernameOrMobile(e.target.value)}
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 py-3 pl-10 pr-3 text-sm text-white placeholder-slate-600 outline-none transition-colors focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="block w-full py-3 pl-10 pr-3 text-sm text-white placeholder-slate-600 outline-none transition-all glass-input font-mono"
                     placeholder="Enter username or mobile"
                     disabled={loading}
                     autoFocus
@@ -172,19 +177,19 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
                   Password
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <Key className="h-5 w-5" />
+                    <Key className="h-4 w-4" />
                   </span>
                   <input
                     type={showPassword ? "text" : "password"}
                     id="login-password-input"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 py-3 pl-10 pr-10 text-sm text-white placeholder-slate-600 outline-none transition-colors focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="block w-full py-3 pl-10 pr-10 text-sm text-white placeholder-slate-600 outline-none transition-all glass-input font-mono"
                     placeholder="••••••••"
                     disabled={loading}
                   />
@@ -202,7 +207,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <motion.div 
                   initial={{ opacity: 0, y: -5 }} 
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-lg bg-red-950/40 border border-red-500/30 p-3 text-xs text-red-400"
+                  className="rounded-lg bg-red-950/20 border border-red-500/20 p-3 text-xs text-red-300 leading-relaxed font-sans font-medium"
                 >
                   {error}
                 </motion.div>
@@ -212,10 +217,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 type="submit"
                 id="login-submit-btn"
                 disabled={loading}
-                className="relative flex w-full justify-center rounded-lg bg-teal-500 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 outline-none transition-transform active:scale-[0.98] disabled:opacity-50"
+                className="relative flex w-full justify-center rounded-lg py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/10 cursor-pointer glass-btn-primary disabled:opacity-50"
               >
                 {loading ? (
-                  <RefreshCw className="h-5 w-5 animate-spin text-slate-950" />
+                  <RefreshCw className="h-5 w-5 animate-spin text-white" />
                 ) : (
                   "Authenticate Device"
                 )}
@@ -229,30 +234,30 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onSubmit={handleVerifyOtp} 
-              className="mt-8 space-y-5"
+              className="mt-4 space-y-3.5"
             >
-              <div className="rounded-lg bg-teal-500/10 border border-teal-500/20 p-3 text-left">
-                <p className="text-xs font-semibold text-teal-400 font-mono uppercase tracking-wider">
+              <div className="rounded-lg bg-indigo-500/5 border border-indigo-500/15 p-3.5 text-left">
+                <p className="text-[10px] font-bold text-indigo-400 font-mono uppercase tracking-widest flex items-center gap-1.5">
                   🛡️ First Time Device Verification
                 </p>
-                <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+                <p className="mt-1.5 text-xs text-slate-300 leading-relaxed font-sans font-medium">
                   Welcome to the platform! Since this is your first sign-in log, you are required to verify the device.
                 </p>
-                <div className="mt-4 flex items-center justify-center p-4 border border-slate-700 bg-slate-900 rounded-lg shadow-inner">
+                <div className="mt-4 flex items-center justify-center p-4 border border-white/5 bg-slate-950/80 rounded-lg shadow-inner">
                   <div className="text-center">
-                    <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest mb-1">Your verification code</p>
-                    <p className="text-3xl font-mono font-bold tracking-widest text-teal-400 select-all">{generatedOtp}</p>
+                    <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest font-bold mb-1">Your verification code</p>
+                    <p className="text-3xl font-mono font-black tracking-widest text-indigo-400 select-all">{generatedOtp}</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono pb-1">
                   Enter Secure OTP
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <CheckCircle className="h-5 w-5" />
+                    <CheckCircle className="h-4 w-4" />
                   </span>
                   <input
                     type="text"
@@ -260,7 +265,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                     value={otpValue}
                     onChange={(e) => setOtpValue(e.target.value.trim().replace(/\D/g, ""))}
                     maxLength={4}
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 py-3 pl-10 pr-3 font-mono text-center text-xl tracking-[0.5em] text-white placeholder-slate-600 outline-none transition-colors focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="block w-full py-3 pl-10 pr-3 font-mono text-center text-xl tracking-[0.5em] text-white placeholder-slate-600 outline-none transition-all glass-input"
                     placeholder="____"
                     disabled={loading || !!successMsg}
                     autoFocus
@@ -269,13 +274,13 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
 
               {error && (
-                <div className="rounded-lg bg-red-950/40 border border-red-500/30 p-3 text-xs text-red-400">
+                <div className="rounded-lg bg-red-950/20 border border-red-500/20 p-3 text-xs text-red-300 font-sans font-medium">
                   {error}
                 </div>
               )}
 
               {successMsg && (
-                <div className="flex items-center gap-2 rounded-lg bg-green-950/40 border border-green-500/30 p-3 text-xs text-green-400">
+                <div className="flex items-center gap-2 rounded-lg bg-green-950/20 border border-green-500/20 p-3 text-xs text-green-300 font-sans font-medium">
                   <CheckCircle className="h-4 w-4 shrink-0 text-green-400" />
                   <span>{successMsg}</span>
                 </div>
@@ -285,10 +290,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 type="submit"
                 id="force-password-change-submit"
                 disabled={loading || !!successMsg}
-                className="relative flex w-full justify-center rounded-lg bg-teal-500 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-teal-500/20 outline-none transition-transform active:scale-[0.98] disabled:opacity-50"
+                className="relative flex w-full justify-center rounded-lg py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/10 cursor-pointer glass-btn-primary disabled:opacity-50"
               >
                 {loading ? (
-                  <RefreshCw className="h-5 w-5 animate-spin text-slate-950" />
+                  <RefreshCw className="h-5 w-5 animate-spin text-white" />
                 ) : (
                   "Verify & Complete Setup"
                 )}
@@ -297,8 +302,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           )}
         </AnimatePresence>
 
-        <div className="flex items-center justify-between border-t border-slate-800/60 pt-4 text-center">
-          <p className="text-[10px] text-slate-500 font-mono tracking-tight text-center w-full">
+        <div className="flex items-center justify-between border-t border-white/5 pt-4 text-center">
+          <p className="text-[10px] text-slate-500 font-mono tracking-tight text-center w-full font-semibold">
             Agent terminal connection encrypted under Firestore integrity standards.
           </p>
         </div>

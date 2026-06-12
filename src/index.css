@@ -1,1 +1,244 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Base custom resets for enterprise premium dark UI with strict single viewport constraints */
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0b0f19;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Beautiful Liquid Glass Background with moving/blur backdrop */
+.liquid-bg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #0b0f19;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 60%);
+  overflow: hidden;
+}
+
+/* Adding gorgeous glowing interactive orb mock elements under the glass system */
+.liquid-bg::before, .liquid-bg::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.6;
+  animation: liquid-drift 25s infinite alternate ease-in-out;
+}
+
+.liquid-bg::before {
+  width: 300px;
+  height: 300px;
+  background: rgba(6, 182, 212, 0.3); /* Vibrant Cyan */
+  top: -10%;
+  left: -10%;
+}
+
+.liquid-bg::after {
+  width: 350px;
+  height: 350px;
+  background: rgba(79, 70, 229, 0.25); /* Royal Indigo/Blue */
+  bottom: -10%;
+  right: -10%;
+  animation-duration: 30s;
+  animation-delay: -5s;
+}
+
+@keyframes liquid-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 30px) scale(1.15);
+  }
+  100% {
+    transform: translate(-20px, -40px) scale(0.9);
+  }
+}
+
+/* Liquid Glass container */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border-radius: 16px;
+}
+
+/* Frosted glass cards legacy helper */
+.glass-container {
+  background: rgba(13, 17, 28, 0.4);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(6, 182, 212, 0.3);
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.5),
+              0 0 15px 1px rgba(6, 182, 212, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Premium micro reflection border */
+.glass-border {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Input fields with crisp glassy feedback */
+.glass-input {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-input:focus {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+  outline: none;
+}
+
+/* Liquid Primary buttons with royal blue to bright cyan */
+.glass-btn-primary {
+  background: linear-gradient(135deg, #1e40af 0%, #0891b2 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px -2px rgba(8, 145, 178, 0.3),
+              inset 0 1px 0px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  box-shadow: 0 6px 20px -2px rgba(8, 145, 178, 0.5),
+              0 0 15px rgba(6, 182, 212, 0.2);
+  transform: translateY(-0.5px);
+}
+
+/* Secondary delicate glass action triggers */
+.glass-btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Danger glass buttons */
+.glass-btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.2);
+}
+
+/* Beautiful micro badge status items */
+.glass-badge {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+
+.glass-badge-blue {
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  color: #a5f3fc;
+}
+
+.glass-badge-green {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #a7f3d0;
+}
+
+.glass-badge-amber {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+}
+
+/* Interactive custom indicators */
+.active-pulse-green {
+  position: relative;
+}
+.active-pulse-green::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+  right: -12px;
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* Smooth Premium Scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}

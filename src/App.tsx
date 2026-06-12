@@ -134,43 +134,52 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950 font-mono text-xs text-slate-500">
-        Authenticating terminal environment...
+      <div className="flex h-screen items-center justify-center bg-[#06080F] font-mono text-xs text-indigo-400">
+        <div className="flex flex-col items-center gap-3">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+          <span className="tracking-widest uppercase text-[10px] font-bold">Authenticating SECURE Core Enclave...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-teal-500 selection:text-slate-950">
+    <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full liquid-bg text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white p-2.5 sm:p-4 box-border overflow-hidden relative z-10 font-sans">
       
-      {/* Real vs Mock banner helper */}
-      <div className="bg-slate-900 border-b border-slate-800/80 text-center py-1.5 px-4 text-xs font-mono flex items-center justify-center gap-2 flex-wrap">
+      {/* Real vs Mock banner helper - Redesigned as a premium glassy metadata anchor */}
+      <div className="bg-slate-950/40 border border-white/5 rounded-xl text-center py-1.5 px-3 text-[10.5px] font-mono flex items-center justify-center gap-1.5 flex-wrap backdrop-blur-md z-30 shrink-0">
         {isRealFirebase ? (
           <>
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-slate-300">Connected to active Firestore DB:</span>
-            <span className="rounded bg-teal-500/10 px-1 py-0.2 text-[10px] text-teal-400 font-bold border border-teal-500/20">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-slate-400 font-sans font-medium">Secure Core Active:</span>
+            <span className="rounded-md glass-badge-green px-2 py-0.5 text-[8.5px] font-bold tracking-wider">
               {configProjectId || "Production"}
             </span>
           </>
         ) : (
           <>
-            <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-slate-300">Running inside Local Staging Preview:</span>
-            <span className="rounded bg-amber-500/10 px-1 py-0.2 text-[10px] text-amber-400 font-bold border border-amber-500/20">
-              Demo Sandbox Cache
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+            </span>
+            <span className="text-slate-400 font-sans text-[10px] font-medium">Environment Mirror:</span>
+            <span className="rounded-md glass-badge-amber px-1.5 py-0.2 text-[8px] font-bold tracking-wider">
+              DEMO SANDBOX ACTIVE
             </span>
             <button 
               onClick={() => setShowConfigModal(true)}
-              className="text-[10px] text-teal-400 underline decoration-dotted font-bold hover:text-teal-300 ml-1 transition"
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold hover:underline ml-1 transition-colors font-sans"
             >
-              Configure Live Firebase credentials
+              Configure Firebase
             </button>
           </>
         )}
       </div>
 
-      <main className="grow flex flex-col justify-stretch">
+      <main className="grow flex flex-col justify-stretch overflow-hidden min-h-0 mt-2">
         {!currentUser ? (
           <LoginScreen onLoginSuccess={handleLoginSuccess} />
         ) : (currentUser.role === "NORMAL_USER" || currentUser.role === "OFFICE_STAFF") ? (
@@ -192,7 +201,7 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowConfigModal(false)}
-              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-[#03050A]/75 backdrop-blur-md"
             />
 
             {/* Panel Card */}
@@ -200,23 +209,23 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+              className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl glass-container shadow-2xl"
             >
-              <div className="border-b border-slate-800 bg-slate-900 px-5 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-400">
+              <div className="border-b border-white/5 bg-white/[0.02] px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                     <Database className="h-4 w-4" />
                   </span>
                   <div>
-                    <h3 className="font-sans text-sm font-bold text-white">Database Configuration</h3>
-                    <p className="font-mono text-[9px] text-slate-400 uppercase tracking-widest">
+                    <h3 className="font-display text-sm font-bold text-white tracking-tight">Database Configuration</h3>
+                    <p className="font-mono text-[9px] text-indigo-400/80 uppercase tracking-widest font-bold">
                       Firestore Integration Hub
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowConfigModal(false)}
-                  className="rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-slate-400 hover:text-white hover:border-slate-700 transition"
+                  className="rounded-lg border border-white/5 bg-white/[0.04] hover:bg-white/[0.08] p-1.5 text-slate-400 hover:text-white transition"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -224,9 +233,9 @@ export default function App() {
 
               {/* Form body */}
               <form onSubmit={handleSaveConfig} className="p-5 space-y-4">
-                <div className="rounded-lg bg-slate-950 p-3.5 border border-slate-800/60 flex items-start gap-2.5">
-                  <Sliders className="h-5 w-5 shrink-0 text-teal-400 mt-0.5" />
-                  <p className="text-[11px] text-slate-400 font-mono leading-relaxed">
+                <div className="rounded-lg bg-indigo-950/20 p-3.5 border border-indigo-500/10 flex items-start gap-2.5">
+                  <Sliders className="h-5 w-5 shrink-0 text-indigo-400 mt-0.5" />
+                  <p className="text-[11px] text-indigo-200/75 leading-relaxed font-sans font-medium">
                     By default, this applet hooks into environment variables. To mirror and inspect your own active Firestore project, paste your client keys below.
                   </p>
                 </div>
@@ -238,7 +247,7 @@ export default function App() {
                     value={configProjectId}
                     onChange={(e) => setConfigProjectId(e.target.value)}
                     placeholder="Enter project ID (e.g. repo-tracker-343)"
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
+                    className="block w-full rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 outline-none glass-input font-mono"
                   />
                 </div>
 
@@ -249,7 +258,7 @@ export default function App() {
                     value={configApiKey}
                     onChange={(e) => setConfigApiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
+                    className="block w-full rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 outline-none glass-input font-mono"
                   />
                 </div>
 
@@ -260,7 +269,7 @@ export default function App() {
                     value={configAppId}
                     onChange={(e) => setConfigAppId(e.target.value)}
                     placeholder="1:947485617795:web:..."
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
+                    className="block w-full rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 outline-none glass-input font-mono"
                   />
                 </div>
 
@@ -271,17 +280,17 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="flex gap-2.5 border-t border-slate-800/60 pt-4">
+                <div className="flex gap-2.5 border-t border-white/5 pt-4">
                   <button
                     type="button"
                     onClick={handleResetConfig}
-                    className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                    className="rounded-lg px-3 py-2 text-xs font-semibold glass-btn-secondary text-slate-400 hover:text-white"
                   >
                     Wipe custom cache
                   </button>
                   <button
                     type="submit"
-                    className="grow relative flex justify-center rounded-lg bg-teal-500 py-2 text-xs font-bold text-slate-950 hover:bg-teal-400 transition"
+                    className="grow relative flex justify-center rounded-lg py-2 text-xs font-bold text-white glass-btn-primary cursor-pointer"
                   >
                     Apply Config & Boot
                   </button>

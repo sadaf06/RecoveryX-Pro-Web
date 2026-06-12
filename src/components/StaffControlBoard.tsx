@@ -681,142 +681,161 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   }
 
   return (
-    <div className="min-h-screen bg-[#111318] pb-16 text-slate-100">
+    <div className="h-full w-full bg-transparent text-slate-100 flex flex-col overflow-hidden relative z-10">
+      {/* Decorative premium radial vector ambient lights */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
       
       {/* Dynamic Header Based on Tab */}
       {activeTab === "DASHBOARD" ? (
-        <div className="sticky top-0 z-20 bg-[#0A0D14] px-4 py-4 backdrop-blur-md">
-          <div className="mx-auto flex max-w-lg items-start justify-between">
+        <div className="sticky top-0 z-20 border-b border-white/5 bg-slate-950/45 px-4 py-4 backdrop-blur-md relative z-10">
+          <div className="mx-auto flex max-w-lg items-center justify-between">
             <div>
-              <h1 className="font-sans text-xl font-bold tracking-widest text-white uppercase flex items-center gap-2">
-                RecoveryX Pro Wb
-              </h1>
-              <p className="text-xs text-slate-400 mt-1">Operator: {user.name}</p>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-base font-extrabold tracking-[0.15em] text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
+                  RecoveryX Pro
+                </h1>
+                <span className="glass-badge-blue px-2.5 py-0.5 rounded-full text-[8.5px] font-mono tracking-wider uppercase font-bold shrink-0">
+                  HQ Admin
+                </span>
+              </div>
+              <p className="text-[10.5px] text-slate-500 font-mono mt-0.5 font-bold">Operator: <span className="text-slate-300">{user.name}</span></p>
             </div>
             <button
               onClick={onLogout}
-              className="text-rose-500 hover:text-rose-400 transition-colors p-2 rounded-lg hover:bg-rose-500/10"
+              className="text-rose-400 hover:text-rose-300 transition-all p-2 rounded-lg hover:bg-rose-500/10 cursor-pointer"
             >
-              <LogOut className="w-6 h-6" />
+              <LogOut className="w-5.5 h-5.5" />
             </button>
           </div>
         </div>
       ) : (
-        <div className="sticky top-0 z-20 border-b border-slate-800 bg-[#111318] px-4 py-4 backdrop-blur-md">
+        <div className="sticky top-0 z-20 border-b border-white/5 bg-slate-950/45 px-4 py-4 backdrop-blur-md relative z-10">
           <div className="mx-auto flex max-w-4xl items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setActiveTab("DASHBOARD")}
-                className="text-slate-300 hover:text-white transition-colors p-1"
+                className="text-slate-300 hover:text-white transition-colors p-1 cursor-pointer"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               </button>
-              <h1 className="font-sans text-lg font-medium tracking-tight text-white">
+              <h1 className="font-display text-sm font-bold tracking-tight text-white uppercase">
                 {activeTab === "USERS" ? "Manage Users & Staff" :
-                 activeTab === "IMPORT" ? "Data Import" :
-                 activeTab === "PERMS" ? "Field Permissions" :
-                 "Search & Use History"}
+                 activeTab === "IMPORT" ? "Data Import & Feed" :
+                 activeTab === "PERMS" ? "Field Permissions Locks" :
+                 "Search Telemetry Logs"}
               </h1>
             </div>
             {activeTab === "USERS" && (
-               <button onClick={loadUsers} className="text-slate-300 hover:text-white">
-                 <RefreshCw className="h-5 w-5" />
+               <button onClick={loadUsers} className="text-slate-300 hover:text-white transition-colors cursor-pointer">
+                 <RefreshCw className="h-4.5 w-4.5" />
                </button>
             )}
           </div>
         </div>
       )}
-
-      <div className="mx-auto max-w-4xl px-4 py-6">
+ 
+      <div className="mx-auto w-full max-w-4xl px-3 py-4 relative z-10 grow overflow-y-auto min-h-0">
         {/* DASHBOARD TAB VIEW */}
         {activeTab === "DASHBOARD" && (
           <div className="max-w-lg mx-auto space-y-5">
             {/* Stats Row */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-2xl bg-[#1A1D24] p-5 shadow-sm border border-white/5">
+              <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 blur-2xl rounded-full" />
                 <div className="flex items-start justify-between">
-                  <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                    <Users className="w-5 h-5" />
+                  <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/25">
+                    <Users className="w-4 h-4" />
                   </div>
-                  <p className="text-3xl font-bold text-white font-sans tracking-tight">{connectedUsersCount}</p>
+                  <p className="text-3xl font-bold text-white font-mono tracking-tight">{connectedUsersCount}</p>
                 </div>
                 <div className="mt-4">
-                  <p className="text-sm text-white font-bold">Network Users</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Total provisioned</p>
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Network Operators</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Total provisioned client endpoints</p>
                 </div>
               </div>
-              <div className="rounded-2xl bg-[#1A1D24] p-5 shadow-sm border border-white/5">
+              <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-2xl rounded-full" />
                 <div className="flex items-start justify-between">
-                  <div className="p-2 bg-sky-500/10 text-sky-400 rounded-lg">
-                    <Shield className="w-5 h-5" />
+                  <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/25">
+                    <Shield className="w-4 h-4" />
                   </div>
-                  <p className="text-3xl font-bold text-white font-sans tracking-tight">{activeUsersCount}</p>
+                  <p className="text-3xl font-bold text-white font-mono tracking-tight">{activeUsersCount}</p>
                 </div>
                 <div className="mt-4">
-                  <p className="text-sm text-white font-bold">Active Sessions</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Currently active</p>
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Active Sessions</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Verified active operator nodes</p>
                 </div>
               </div>
             </div>
             
-            <div className="rounded-2xl bg-[#1A1D24] p-5 shadow-sm border border-white/5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
+            <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-purple-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
               <div className="relative z-10 flex items-start justify-between">
-                <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8M8 11h8M8 15h8m-10 4h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/25">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8M8 11h8M8 15h8m-10 4h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 </div>
-                <p className="text-4xl font-bold text-white font-sans tracking-tight">{totalVehiclesCount}</p>
+                <p className="text-4xl font-extrabold text-white font-mono tracking-tight">{totalVehiclesCount}</p>
               </div>
               <div className="relative z-10 mt-4">
-                <p className="text-sm text-white font-bold">Tracked Vehicles Database</p>
-                <p className="text-xs text-slate-500 mt-0.5">Synched from Cloud Firestore</p>
+                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Tracked Vehicles Index</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Synchronized secure ledger records</p>
               </div>
             </div>
-
+ 
             <div className="pt-2">
-              <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3">Console Actions</p>
+              <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3 font-mono">Console Actions</p>
               <div className="space-y-3">
-                <button onClick={() => setActiveTab("SEARCH")} className="w-full flex items-center justify-between bg-gradient-to-r from-indigo-500 to-indigo-400 p-4 rounded-2xl text-white shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all">
+                <button 
+                  onClick={() => setActiveTab("SEARCH")} 
+                  className="w-full flex items-center justify-between p-4.5 rounded-2xl border border-white/10 bg-[#1e233d]/30 hover:bg-[#1e233d]/40 text-white shadow-xl shadow-indigo-500/5 hover:border-indigo-500/30 active:scale-[0.99] transition-all cursor-pointer group"
+                >
                   <div className="text-left">
-                    <p className="font-bold text-base">Global Search Registry</p>
-                    <p className="text-xs text-white/70 mt-0.5">Search and track database vehicles</p>
+                    <p className="font-bold text-base tracking-tight text-indigo-200">Global Search Terminal</p>
+                    <p className="text-xs text-indigo-400/80 mt-1 font-semibold">Verify and track assets over encrypted network channels</p>
                   </div>
-                  <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm">
-                    <Search className="w-5 h-5 text-white" />
+                  <div className="bg-indigo-500/10 text-indigo-400 p-2.5 rounded-xl border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
+                    <Search className="w-5 h-5" />
                   </div>
                 </button>
-
+ 
                 {isAdmin && (
-                  <button onClick={() => setActiveTab("USERS")} className="w-full flex items-center justify-between bg-gradient-to-r from-orange-400 to-rose-400 p-4 rounded-2xl text-white shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all">
+                  <button 
+                    onClick={() => setActiveTab("USERS")} 
+                    className="w-full flex items-center justify-between p-4.5 rounded-2xl border border-white/10 bg-[#2d1e25]/30 hover:bg-[#2d1e25]/40 text-white shadow-xl shadow-rose-500/5 hover:border-rose-500/30 active:scale-[0.99] transition-all cursor-pointer group"
+                  >
                     <div className="text-left">
-                      <p className="font-bold text-base">User & Admin Management</p>
-                      <p className="text-xs text-white/70 mt-0.5">Provision access and update roles</p>
+                      <p className="font-bold text-base tracking-tight text-rose-200">Access Management Enclave</p>
+                      <p className="text-xs text-rose-400/80 mt-1 font-semibold">Provision operator identities and configure endpoints</p>
                     </div>
-                    <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm">
-                      <Users className="w-5 h-5 text-white" />
+                    <div className="bg-rose-500/10 text-rose-400 p-2.5 rounded-xl border border-rose-500/20 group-hover:bg-rose-500/20 transition-all">
+                      <Users className="w-5 h-5" />
                     </div>
                   </button>
                 )}
-
-                <button onClick={() => setActiveTab("LOGS")} className="w-full flex items-center justify-between bg-gradient-to-r from-sky-400 to-blue-500 p-4 rounded-2xl text-white shadow-lg shadow-sky-500/20 active:scale-[0.98] transition-all">
+ 
+                <button 
+                  onClick={() => setActiveTab("LOGS")} 
+                  className="w-full flex items-center justify-between p-4.5 rounded-2xl border border-white/10 bg-[#1e2a3d]/30 hover:bg-[#1e2a3d]/40 text-white shadow-xl shadow-sky-500/5 hover:border-sky-500/30 active:scale-[0.99] transition-all cursor-pointer group"
+                >
                   <div className="text-left">
-                    <p className="font-bold text-base">System Queries History</p>
-                    <p className="text-xs text-white/70 mt-0.5">Audit logs and search behavior</p>
+                    <p className="font-bold text-base tracking-tight text-sky-200">System Logs & Auditing</p>
+                    <p className="text-xs text-sky-400/80 mt-1 font-semibold">Audit real-time lookup records and tracking events</p>
                   </div>
-                  <div className="bg-white/20 p-2.5 rounded-full backdrop-blur-sm">
-                    <History className="w-5 h-5 text-white" />
+                  <div className="bg-sky-500/10 text-sky-400 p-2.5 rounded-xl border border-sky-500/20 group-hover:bg-sky-500/20 transition-all">
+                    <History className="w-5 h-5" />
                   </div>
                 </button>
-
+ 
                 <div className="grid grid-cols-2 gap-3 pt-1">
-                  <button onClick={() => setActiveTab("IMPORT")} className="flex flex-col items-center justify-center gap-3 bg-[#1A1D24] border border-white/5 py-5 rounded-2xl text-white hover:bg-[#20242D] transition-colors active:scale-[0.98]">
-                    <Upload className="w-5 h-5 text-slate-400" />
-                    <span className="text-xs font-bold">Data Import</span>
+                  <button onClick={() => setActiveTab("IMPORT")} className="flex flex-col items-center justify-center gap-3 bg-white/[0.015] border border-white/5 py-5 rounded-2xl text-slate-300 hover:text-white hover:border-white/10 transition-colors active:scale-[0.98] cursor-pointer">
+                    <Upload className="w-5 h-5 text-indigo-400" />
+                    <span className="text-xs font-bold font-mono">DATA IMPORT</span>
                   </button>
                   {isAdmin && (
-                    <button onClick={() => setActiveTab("PERMS")} className="flex flex-col items-center justify-center gap-3 bg-[#1A1D24] border border-white/5 py-5 rounded-2xl text-white hover:bg-[#20242D] transition-colors active:scale-[0.98]">
-                      <Shield className="w-5 h-5 text-slate-400" />
-                      <span className="text-xs font-bold">Permissions</span>
+                    <button onClick={() => setActiveTab("PERMS")} className="flex flex-col items-center justify-center gap-3 bg-white/[0.015] border border-white/5 py-5 rounded-2xl text-slate-300 hover:text-white hover:border-white/10 transition-colors active:scale-[0.98] cursor-pointer">
+                      <Shield className="w-5 h-5 text-indigo-400" />
+                      <span className="text-xs font-bold font-mono">LOCK PERMS</span>
                     </button>
                   )}
                 </div>

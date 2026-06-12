@@ -255,28 +255,28 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
   };
 
   return (
-    <div className="h-screen bg-[#0A0D14] text-slate-100 flex flex-col overflow-hidden relative font-sans">
+    <div className="h-full w-full bg-transparent text-slate-100 flex flex-col overflow-hidden relative font-sans">
       {/* Decorative premium radial vector ambient lights */}
-      <div className="absolute top-[-15%] left-[-15%] w-[60%] h-[60%] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
-      <div className="absolute bottom-[-15%] right-[-15%] w-[60%] h-[60%] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="absolute top-[-15%] left-[-15%] w-[60%] h-[60%] bg-indigo-500/10 rounded-full blur-[130px] pointer-events-none z-0" />
+      <div className="absolute bottom-[-15%] right-[-15%] w-[60%] h-[60%] bg-emerald-500/5 rounded-full blur-[130px] pointer-events-none z-0" />
 
-      {/* Header Panel - Re-engineered for Multi-Million Dollar Aesthetic - COMPACT VERSION */}
-      <div className="shrink-0 z-20 border-b border-white/5 bg-[#0F1218]/90 shadow-2xl backdrop-blur-xl p-2 sm:p-3 flex items-center justify-between gap-4">
+      {/* Header Panel - Re-engineered for Elegant Liquid Glass Aesthetic */}
+      <div className="shrink-0 z-20 border-b border-white/5 bg-slate-950/45 shadow-2xl backdrop-blur-md p-2 sm:p-3 flex items-center justify-between gap-4">
         {/* Title / Identity block */}
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/5 shrink-0">
+          <div className="w-8.5 h-8.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] shrink-0">
             <Activity className="w-4 h-4" />
           </div>
           <div className="hidden xs:block">
             <div className="flex items-center gap-2">
-              <h1 className="font-sans text-[10px] sm:text-xs font-black tracking-widest text-white uppercase">
-                RecoveryX Pro Wb
+              <h1 className="font-display text-[11px] sm:text-xs font-extrabold tracking-[0.15em] text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
+                RecoveryX Pro
               </h1>
-              <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[8px] font-bold text-indigo-400 uppercase tracking-widest hidden sm:inline-block">
+              <span className="glass-badge-blue px-2 py-0.5 rounded-full text-[8px] font-bold tracking-wider uppercase shrink-0">
                 {user.role.replace('_', ' ')}
               </span>
             </div>
-            <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">
+            <p className="text-[9px] text-slate-500 uppercase tracking-widest font-semibold mt-0.5">
               <span className="hidden sm:inline">Secure Terminal • </span><span className="text-slate-400 font-mono">{user.name}</span>
             </p>
           </div>
@@ -284,13 +284,13 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
 
         {/* Global registry live status and workstation controller actions */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden md:flex items-center gap-2 bg-[#0A0D14]/80 border border-white/5 rounded-lg px-2.5 py-1">
+          <div className="hidden md:flex items-center gap-2 bg-slate-950/60 border border-white/5 rounded-lg px-2.5 py-1 backdrop-blur-sm">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
             </span>
-            <span className="text-[10px] font-semibold text-slate-300">
-              Index: <strong className="text-white font-mono">{cachedVehicles.length.toLocaleString()}</strong>
+            <span className="text-[10px] font-bold text-slate-400 tracking-wider">
+              INDEX: <strong className="text-emerald-400 font-mono">{cachedVehicles.length.toLocaleString()}</strong>
             </span>
           </div>
 
@@ -298,15 +298,15 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             <button
               onClick={handleSyncData}
               disabled={syncing}
-              className="flex items-center gap-1.5 rounded-lg bg-[#2D2A1E] hover:bg-[#3d3928] border border-amber-500/20 text-amber-400 px-2.5 py-1.5 text-[10px] font-bold font-sans transition-all active:scale-95"
+              className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 px-2.5 py-1.5 text-[10px] font-bold font-sans transition-all active:scale-95 focus:outline-none cursor-pointer"
             >
-              <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin text-amber-400' : ''}`} />
               <span className="hidden sm:inline">Sync Registry</span>
               <span className="sm:hidden">Sync</span>
             </button>
             <button
               onClick={onLogout}
-              className="rounded-lg bg-white/5 border border-white/5 hover:bg-rose-500/10 hover:border-rose-500/25 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:text-rose-400 transition-all active:scale-95"
+              className="rounded-lg bg-white/5 border border-white/5 hover:bg-rose-500/10 hover:border-rose-500/25 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:text-rose-400 transition-all active:scale-95 cursor-pointer"
             >
               {isInsideAdmin ? "Return" : "Lockout"}
             </button>
@@ -314,10 +314,10 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
         </div>
       </div>
 
-      {/* Embedded Modern Workstation Command Bar - COMPACT VERSION */}
-      <div className="shrink-0 z-10 border-b border-white/5 bg-[#171A21]/40 px-2 py-2 sm:px-3 flex items-center gap-2">
+      {/* Embedded Modern Workstation Command Bar - Redesigned as clean glassy rail */}
+      <div className="shrink-0 z-10 border-b border-white/5 bg-[#121625]/20 backdrop-blur-md px-2.5 py-2 sm:px-3 flex items-center gap-2">
         {/* Custom triggers for search targeting */}
-        <div className="relative flex items-center bg-[#0A0D14] border border-white/10 rounded-lg p-0.5 shrink-0">
+        <div className="relative flex items-center bg-slate-950/80 border border-white/10 rounded-lg p-0.5 shrink-0">
           <select
             value={searchFilter}
             onChange={(e) => {
@@ -326,20 +326,20 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             }}
             className="appearance-none font-mono text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-transparent pr-6 pl-2.5 py-1.5 focus:outline-none cursor-pointer"
           >
-            <option value="VEHICLE_LAST_4" className="bg-[#12141C]">Plate</option>
-            <option value="GENERAL" className="bg-[#12141C]">Omni</option>
-            <option value="ENGINE_LAST_4" className="bg-[#12141C]">Engine</option>
-            <option value="CHASSIS_LAST_4" className="bg-[#12141C]">Chassis</option>
-            <option value="LOAN_STARTS" className="bg-[#12141C]">Agreemnt</option>
+            <option value="VEHICLE_LAST_4" className="bg-[#0A0D14]">Plate</option>
+            <option value="GENERAL" className="bg-[#0A0D14]">Omni</option>
+            <option value="ENGINE_LAST_4" className="bg-[#0A0D14]">Engine</option>
+            <option value="CHASSIS_LAST_4" className="bg-[#0A0D14]">Chassis</option>
+            <option value="LOAN_STARTS" className="bg-[#0A0D14]">Agreemnt</option>
           </select>
-          <div className="absolute right-2 pointer-events-none text-indigo-400">
+          <div className="absolute right-2.5 pointer-events-none text-indigo-400">
             <span className="text-[7px] font-sans">▼</span>
           </div>
         </div>
 
         {/* Premium search field with adaptive placeholder */}
         <div className="relative grow">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-indigo-400/80">
             <Search className="h-3.5 w-3.5" />
           </span>
           <input
@@ -347,12 +347,12 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
-              searchFilter === "VEHICLE_LAST_4" ? "Plate indices..." :
-              searchFilter === "ENGINE_LAST_4" ? "Engine codes..." :
-              searchFilter === "CHASSIS_LAST_4" ? "Chassis codes..." :
-              searchFilter === "LOAN_STARTS" ? "Loan tokens..." : "Omni database..."
+              searchFilter === "VEHICLE_LAST_4" ? "Enter Plate characters (e.g. 5621)..." :
+              searchFilter === "ENGINE_LAST_4" ? "Enter Engine metrics..." :
+              searchFilter === "CHASSIS_LAST_4" ? "Enter Chassis metrics..." :
+              searchFilter === "LOAN_STARTS" ? "Enter Agreement metrics..." : "Type custom parameters..."
             }
-            className="block w-full rounded-lg border border-white/10 bg-[#0A0D14] py-2 pl-9 pr-9 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 focus:border-indigo-500 focus:ring-0.5 focus:ring-indigo-500 font-mono tracking-wide"
+            className="block w-full py-2 pl-9 pr-9 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 glass-input font-mono tracking-wide"
           />
           {searchQuery && (
             <button
@@ -367,33 +367,33 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
 
 
       {/* Main command layout search result view area */}
-      <div className="grow overflow-y-auto p-4 sm:p-6 bg-[#0A0D14]/40 z-10 animate-fade-in">
+      <div className="grow overflow-y-auto p-4 sm:p-6 bg-transparent z-10 animate-fade-in">
         {!searchQuery ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4 max-w-sm mx-auto">
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-xl shadow-indigo-500/5">
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
               <div className="absolute inset-0 bg-indigo-500/5 rounded-3xl animate-ping" />
               <Search className="h-8 w-8 text-indigo-400" />
             </div>
-            <div className="space-y-2">
-              <h3 className="text-base font-bold tracking-tight text-white font-sans">Ready for Query lookup</h3>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold tracking-tight text-white font-display">Ready for Query Lookup</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
                 Type above to trigger instant offline searches from secure cached index database files.
               </p>
             </div>
             {/* Detailed performance stats block */}
-            <div className="w-full bg-[#1A1D24]/65 border border-white/5 rounded-2xl p-4.5 space-y-3.5 text-left shadow-lg">
+            <div className="w-full glass-card rounded-2xl p-4 space-y-3.5 text-left shadow-lg">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   <Database className="w-4 h-4" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-sans">Subscribed Index</p>
-                  <p className="text-xs font-bold text-white mt-0.5">{cachedVehicles.length.toLocaleString()} Loaded Assets</p>
+                  <p className="text-xs font-bold text-slate-200 mt-0.5">{cachedVehicles.length.toLocaleString()} Loaded Assets</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-                  <CheckCircle className="w-4 h-4" />
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-sans">Client Security Enclave</p>
@@ -402,7 +402,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               </div>
               {lastSynced && (
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400">
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/25">
                     <RefreshCw className="w-4 h-4" />
                   </div>
                   <div>
@@ -414,7 +414,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             </div>
           </div>
         ) : filteredVehicles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3 max-w-sm mx-auto">
+          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3 max-w-sm mx-auto font-sans">
             <div className="p-4 rounded-3xl bg-rose-500/10 border border-rose-500/25 text-rose-400 shadow-xl shadow-rose-500/5">
               <AlertTriangle className="h-6 w-6" />
             </div>
@@ -433,24 +433,24 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                 whileHover={{ scale: 1.02, y: -1 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleSelectCard(v)}
-                className="group relative cursor-pointer rounded-xl border border-white/5 bg-[#1A1D24]/90 p-2.5 hover:border-indigo-500/30 hover:bg-[#20242D] transition-all duration-300 flex flex-col justify-between h-[85px] shadow-xl hover:shadow-indigo-500/5 overflow-hidden"
+                className="group relative cursor-pointer rounded-xl glass-card glass-card-hover p-2.5 flex flex-col justify-between h-[85px] overflow-hidden"
               >
                 {/* Visual accent top corner glow */}
-                <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 
                 <div className="relative flex items-center justify-between gap-1 w-full min-w-0 text-[10px]">
-                  <span className="font-bold text-slate-300 truncate flex-1" title={v.owner}>
+                  <span className="font-bold text-slate-300 truncate flex-1 font-sans" title={v.owner}>
                     {renderField("show_customer_name", v.owner)}
                   </span>
                   {user.role !== "NORMAL_USER" && (
-                    <span className="text-[9px] font-bold text-indigo-400 shrink-0 truncate max-w-[45%] bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/10" title={v.bank_name || "Creditor"}>
+                    <span className="text-[9px] font-bold text-indigo-300 shrink-0 truncate max-w-[45%] bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 font-sans" title={v.bank_name || "Creditor"}>
                       {renderField("show_bank_name", v.bank_name || "Creditor")}
                     </span>
                   )}
                 </div>
 
-                <div className="bg-gradient-to-b from-[#0A0D14] to-[#12141C] border border-white/5 px-2 py-1 rounded-lg text-center shadow-inner group-hover:border-indigo-500/20 transition-colors">
-                  <p className="font-mono text-xs font-black tracking-widest text-[#F8FAFC]">
+                <div className="bg-slate-950/40 border border-white/5 px-2 py-1.5 rounded-lg text-center shadow-inner group-hover:border-indigo-500/30 transition-all">
+                  <p className="font-mono text-xs font-black tracking-widest text-slate-100 uppercase">
                     {renderField("show_vehicle_number", v.registration_number)}
                   </p>
                 </div>
@@ -469,26 +469,26 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedVehicle(null)}
-              className="absolute inset-0 bg-[#020408]/85 backdrop-blur-md"
+              className="absolute inset-0 bg-[#030509]/80 backdrop-blur-md"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0F1218]/98 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)]"
+              className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl glass-container shadow-[0_32px_64px_-16px_rgba(0,0,0,0.85)]"
             >
               {/* Premium Top Multi-Million Dollar Styling Accents */}
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50" />
+              <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
               
               {/* Dossier Header - Compact */}
-              <div className="border-b border-white/5 bg-[#171A21] px-4 py-3 flex items-center justify-between">
+              <div className="border-b border-white/5 bg-white/[0.02] px-4 py-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                     <Database className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-[10px] uppercase tracking-[0.2em] font-black text-indigo-400">Secure Asset Registry Dossier</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <h3 className="text-[10px] uppercase tracking-[0.2em] font-black text-indigo-400 font-mono">Secure Asset Registry Dossier</h3>
+                    <div className="flex items-center gap-2 mt-0.5 font-sans">
                       {user.role !== "NORMAL_USER" && (
                         <>
                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{renderField("show_bank_name", selectedVehicle.bank_name || "Creditor")}</span>
@@ -506,14 +506,14 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleExportPDF}
-                    className="rounded-lg bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all duration-200"
+                    className="rounded-lg bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all duration-200 cursor-pointer"
                     title="Export as PDF"
                   >
                     <Printer className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleShareText}
-                    className="rounded-lg bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all duration-200"
+                    className="rounded-lg bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all duration-200 cursor-pointer"
                     title="Share as Text"
                   >
                     <Share2 className="w-4 h-4" />
@@ -521,7 +521,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                   <div className="w-px h-4 bg-white/10 mx-1"></div>
                   <button
                     onClick={() => setSelectedVehicle(null)}
-                    className="rounded-lg bg-white/5 hover:bg-rose-500/10 p-1.5 text-slate-400 hover:text-rose-400 transition-all duration-200"
+                    className="rounded-lg bg-white/5 hover:bg-rose-500/10 p-1.5 text-slate-400 hover:text-rose-400 transition-all duration-200 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -529,14 +529,14 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               </div>
 
               {/* Master Plate Label - Ultra Compact Embossed */}
-              <div className="p-4 bg-[#0A0D14] border-b border-white/5">
-                <div className="relative bg-gradient-to-b from-[#1E222B] to-[#12141C] border border-white/10 px-4 py-3 rounded-xl text-center shadow-inner overflow-hidden">
-                  <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-600/50" />
-                  <p className="text-xl font-black font-mono tracking-[0.3em] pl-4 uppercase text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] select-all leading-none">
+              <div className="p-4 bg-slate-950/40 border-b border-white/5">
+                <div className="relative bg-gradient-to-b from-white/[0.03] to-slate-950/60 border border-white/8 px-4 py-3 rounded-xl text-center shadow-inner overflow-hidden">
+                  <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500/85" />
+                  <p className="text-xl font-black font-mono tracking-[0.3em] pl-4 uppercase text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.25)] select-all leading-none">
                     {renderField("show_vehicle_number", selectedVehicle.registration_number)}
                   </p>
                   {selectedVehicle.model && (
-                    <p className="mt-2 text-[10px] font-black text-indigo-400/80 uppercase tracking-widest pl-4">
+                    <p className="mt-2 text-[9px] font-black text-indigo-400 uppercase tracking-[0.2em] pl-4 font-mono">
                       {selectedVehicle.model}
                     </p>
                   )}
@@ -546,16 +546,16 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               {/* Dossier Body - Single Column Details */}
               <div className="p-5 overflow-y-auto max-h-[60vh] space-y-5">
                 <div className="space-y-2.5">
-                  <h4 className="text-[11px] uppercase tracking-[0.2em] font-black text-slate-500 flex items-center gap-2">
+                  <h4 className="text-[11px] uppercase tracking-[0.2em] font-black text-slate-500 flex items-center gap-2 font-mono">
                     <UserIcon className="w-3.5 h-3.5" /> Registry Identity
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg sm:col-span-2">
+                    <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg sm:col-span-2">
                       <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Legal Owner / Customer</span>
                       <p className="text-sm font-bold text-white truncate">{renderField("show_customer_name", selectedVehicle.owner)}</p>
                     </div>
                     {renderField("show_file_name", selectedVehicle.file_name) && selectedVehicle.file_name && (
-                      <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg flex flex-col gap-2 sm:col-span-2">
+                      <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg flex flex-col gap-2 sm:col-span-2">
                         <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold block mb-1">Source Ledger File(s)</span>
                         {selectedMatches.length > 1 ? (
                           <div className="space-y-1.5 font-mono text-xs max-h-32 overflow-y-auto pr-1">
@@ -563,10 +563,10 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                               <button
                                 key={m.id || idx}
                                 onClick={() => setSelectedVehicle(m)}
-                                className={`w-full text-left px-3 py-2 rounded-md font-bold truncate transition-colors border ${
+                                className={`w-full text-left px-3 py-2 rounded-md font-bold truncate transition-colors border cursor-pointer ${
                                   m.id === selectedVehicle.id 
                                     ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" 
-                                    : "bg-[#0A0D14] text-slate-400 border-white/5 hover:border-white/10 hover:text-slate-300"
+                                    : "bg-slate-950/80 text-slate-400 border-white/5 hover:border-white/10 hover:text-slate-300"
                                 }`}
                                 title={m.file_name}
                               >
@@ -582,32 +582,32 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                       </div>
                     )}
                     
-                    <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg sm:col-span-2">
+                    <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg sm:col-span-2">
                       <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Agreement Number</span>
                       <p className="text-xs font-bold text-white font-mono break-all">{renderField("show_loan_no", selectedVehicle.loan_no)}</p>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2 sm:gap-2.5 sm:col-span-2">
-                      <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg">
+                      <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg">
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Bucket</span>
                         <p className="text-[10px] sm:text-xs font-bold text-white font-mono truncate">{renderField("show_bucket", selectedVehicle.bucket)}</p>
                       </div>
-                      <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg">
+                      <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg">
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">EMI</span>
                         <p className="text-[10px] sm:text-xs font-bold text-white font-mono break-all">{renderField("show_emi", selectedVehicle.emi)}</p>
                       </div>
-                      <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg">
+                      <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg">
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">POS</span>
                         <p className="text-[10px] sm:text-xs font-bold text-indigo-400 font-mono break-all tracking-tight">{renderField("show_pos", selectedVehicle.pos)}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 sm:gap-2.5 sm:col-span-2">
-                      <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg">
+                      <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg">
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Engine Code</span>
                         <p className="text-[10px] sm:text-xs font-bold text-slate-300 font-mono break-all">{renderField("show_engine_number", selectedVehicle.engine_number)}</p>
                       </div>
-                      <div className="bg-[#1A1D24] border border-white/5 p-3 rounded-lg">
+                      <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg">
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold block mb-1">Chassis Code</span>
                         <p className="text-[10px] sm:text-xs font-bold text-slate-300 font-mono break-all">{renderField("show_chassis_number", selectedVehicle.chassis_number)}</p>
                       </div>
@@ -616,7 +616,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                 </div>
 
                 <div className="space-y-2.5">
-                  <h4 className="text-[11px] uppercase tracking-[0.2em] font-black text-slate-500 flex items-center gap-2">
+                  <h4 className="text-[11px] uppercase tracking-[0.2em] font-black text-slate-500 flex items-center gap-2 font-mono">
                     <ShieldCheck className="w-3.5 h-3.5" /> Authorization
                   </h4>
                   <div className="bg-indigo-500/5 border border-indigo-500/10 p-3.5 rounded-lg flex items-center justify-between">
