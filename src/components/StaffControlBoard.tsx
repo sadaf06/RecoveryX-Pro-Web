@@ -112,16 +112,33 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     setErrorMsg("");
     setSuccessMsg("");
 
-    if (!editUserMobile.trim() || !editUserName.trim() || !editUserPassword.trim()) {
+    const mobileTrimmed = editUserMobile.trim();
+    const passwordTrimmed = editUserPassword.trim();
+
+    if (!mobileTrimmed || !editUserName.trim() || !passwordTrimmed) {
       setErrorMsg("All fields are required to register edits.");
+      return;
+    }
+
+    // Validate 10-digit mobile number
+    const isTenDigitMobile = /^\d{10}$/.test(mobileTrimmed);
+    if (!isTenDigitMobile) {
+      setErrorMsg("Validation Error: Mobile number must be exactly 10 digits (numeric only).");
+      return;
+    }
+
+    // Validate 6-digit or alphanumeric password
+    const isValidPassword = /^[a-zA-Z0-9]{6}$/.test(passwordTrimmed);
+    if (!isValidPassword) {
+      setErrorMsg("Validation Error: Password must be exactly 6 characters and alphanumeric (digits or letters).");
       return;
     }
 
     try {
       const updatedUserObj: User = {
         name: editUserName.trim(),
-        mobile: editUserMobile.trim(),
-        password: editUserPassword.trim(),
+        mobile: mobileTrimmed,
+        password: passwordTrimmed,
         role: editUserRole,
         status: editUserStatus,
         registered_device_id: editUserDevice.trim(),
@@ -129,14 +146,14 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         creator_mobile: editingUser.creator_mobile
       };
 
-      if (editingUser.mobile !== editUserMobile.trim()) {
+      if (editingUser.mobile !== mobileTrimmed) {
         // Since mobile acts as document ID, delete old document and add new
         await FirebaseService.deleteUser(editingUser.mobile);
         await FirebaseService.addUser(updatedUserObj);
       } else {
         await FirebaseService.updateUser(editingUser.mobile, {
           name: editUserName.trim(),
-          password: editUserPassword.trim(),
+          password: passwordTrimmed,
           role: editUserRole,
           status: editUserStatus,
           registered_device_id: editUserDevice.trim()
@@ -197,8 +214,25 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     setErrorMsg("");
     setSuccessMsg("");
     
-    if (!newUserMobile.trim() || !newUserName.trim() || !newUserPassword.trim()) {
+    const mobileTrimmed = newUserMobile.trim();
+    const passwordTrimmed = newUserPassword.trim();
+
+    if (!mobileTrimmed || !newUserName.trim() || !passwordTrimmed) {
       setErrorMsg("All fields are required to register a user.");
+      return;
+    }
+
+    // Validate 10-digit mobile number
+    const isTenDigitMobile = /^\d{10}$/.test(mobileTrimmed);
+    if (!isTenDigitMobile) {
+      setErrorMsg("Validation Error: Mobile number must be exactly 10 digits (numeric only).");
+      return;
+    }
+
+    // Validate exactly 6 digit or alphanumeric password
+    const isValidPassword = /^[a-zA-Z0-9]{6}$/.test(passwordTrimmed);
+    if (!isValidPassword) {
+      setErrorMsg("Validation Error: Password must be exactly 6 characters and alphanumeric (digits or letters).");
       return;
     }
 
@@ -210,8 +244,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     try {
       const newUserObj: User = {
         name: newUserName.trim(),
-        mobile: newUserMobile.trim(),
-        password: newUserPassword.trim(),
+        mobile: mobileTrimmed,
+        password: passwordTrimmed,
         role: newUserRole,
         status: "ACTIVE",
         registered_device_id: "",
@@ -257,15 +291,20 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       setErrorMsg("Cannot drop self session profile.");
       return;
     }
-    if (!confirm("Are you sure you want to permanently delete this user?")) return;
-
-    try {
-      await FirebaseService.deleteUser(targetMobile);
-      setSuccessMsg("Account successfully discarded.");
-      loadUsers();
-    } catch (e) {
-      setErrorMsg("Failed to delete account from system.");
-    }
+    
+    confirmAction(
+      "Permanently Delete User",
+      "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible.",
+      async () => {
+        try {
+          await FirebaseService.deleteUser(targetMobile);
+          setSuccessMsg("Account successfully discarded.");
+          loadUsers();
+        } catch (e) {
+          setErrorMsg("Failed to delete account from system.");
+        }
+      }
+    );
   };
 
   // -------------------------------------------------------------
@@ -885,24 +924,26 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-[#0A0D14]/80 backdrop-blur-sm"
+                className="absolute inset-0 bg-[#030509]/80 backdrop-blur-md"
                 onClick={() => setConfirmDialog(d => ({ ...d, isOpen: false }))}
               />
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="relative bg-[#1A1D24] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4"
+                className="relative liquid-glass p-6 w-full max-w-sm shadow-2xl space-y-4 text-left overflow-hidden"
               >
-                <div className="flex items-center gap-3 text-rose-500 mb-2">
-                  <AlertCircle className="w-6 h-6 shrink-0" />
-                  <h3 className="text-lg font-bold tracking-tight text-white leading-tight">{confirmDialog.title}</h3>
+                <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-rose-500/50 to-transparent" />
+                
+                <div className="flex items-center gap-3 text-rose-400 mb-1">
+                  <AlertCircle className="w-5.5 h-5.5 shrink-0" />
+                  <h3 className="text-base font-bold tracking-tight text-white leading-tight font-display">{confirmDialog.title}</h3>
                 </div>
-                <p className="text-sm text-slate-400 font-medium leading-relaxed">{confirmDialog.message}</p>
-                <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">{confirmDialog.message}</p>
+                <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
                   <button
                     onClick={() => setConfirmDialog(d => ({ ...d, isOpen: false }))}
-                    className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/10"
+                    className="flex-1 py-2 text-xs font-semibold glass-btn-secondary text-slate-300 hover:text-white rounded-lg cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -911,9 +952,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       setConfirmDialog(d => ({ ...d, isOpen: false }));
                       confirmDialog.onConfirm();
                     }}
-                    className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors shadow-lg shadow-rose-500/20"
+                    className="flex-1 py-2 text-xs font-bold rounded-lg cursor-pointer glass-btn-danger"
                   >
-                    Confirm Action
+                    Delete Account
                   </button>
                 </div>
               </motion.div>
@@ -970,12 +1011,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Indicator (Node ID)</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Indicator (10-Digit Login ID)</label>
                         <input
                           type="text"
                           value={newUserMobile}
                           onChange={(e) => setNewUserMobile(e.target.value.trim())}
-                          placeholder="Enter node mobile integer"
+                          placeholder="E.g., 9876543210"
                           className="block w-full rounded-xl border border-white/10 bg-[#0A0D14] px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
                         />
                       </div>
@@ -993,12 +1034,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Initial Handshake Key</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Password (6 Alphanumeric Keys)</label>
                         <input
                           type="text"
                           value={newUserPassword}
                           onChange={(e) => setNewUserPassword(e.target.value)}
-                          placeholder="Pre-shared key"
+                          placeholder="6-char Alphanumeric key"
                           className="block w-full rounded-xl border border-white/10 bg-[#0A0D14] px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
                         />
                       </div>
@@ -1196,11 +1237,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Mobile (Login ID)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Mobile (10-Digit Login ID)</label>
                   <input
                     type="text"
                     value={editUserMobile}
                     onChange={(e) => setEditUserMobile(e.target.value.trim())}
+                    placeholder="E.g., 9876543210"
                     className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
                     required
                   />
@@ -1208,11 +1250,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Security Password</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Security Password (6 Alphanumeric Keys)</label>
                   <input
                     type="text"
                     value={editUserPassword}
                     onChange={(e) => setEditUserPassword(e.target.value)}
+                    placeholder="6-char Alphanumeric"
                     className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
                     required
                   />

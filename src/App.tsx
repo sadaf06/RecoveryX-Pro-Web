@@ -36,6 +36,7 @@ export default function App() {
   const [configProjectId, setConfigProjectId] = useState("");
   const [configAppId, setConfigAppId] = useState("");
   const [configSuccess, setConfigSuccess] = useState(false);
+  const [resetClicked, setResetClicked] = useState(false);
 
   // Load session from localStorage on mount (persistent login) and set document title
   useEffect(() => {
@@ -127,9 +128,13 @@ export default function App() {
   };
 
   const handleResetConfig = () => {
-    if (confirm("Reset current config to default sandbox and wipe emulator schemas?")) {
-      FirebaseService.clearCustomConfig();
+    if (!resetClicked) {
+      setResetClicked(true);
+      setTimeout(() => setResetClicked(false), 3000); // revert to original state after 3s
+      return;
     }
+    FirebaseService.clearCustomConfig();
+    setResetClicked(false);
   };
 
   if (authLoading) {
@@ -284,9 +289,13 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleResetConfig}
-                    className="rounded-lg px-3 py-2 text-xs font-semibold glass-btn-secondary text-slate-400 hover:text-white"
+                    className={`rounded-lg px-3 py-2 text-xs font-semibold rounded-lg transition-all ${
+                      resetClicked 
+                        ? "bg-rose-500/10 border border-rose-500/40 text-rose-400 hover:bg-rose-500 hover:text-white" 
+                        : "glass-btn-secondary text-slate-400 hover:text-white"
+                    }`}
                   >
-                    Wipe custom cache
+                    {resetClicked ? "Tap to Confirm Wipe" : "Wipe custom cache"}
                   </button>
                   <button
                     type="submit"
