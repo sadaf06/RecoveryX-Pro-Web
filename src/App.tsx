@@ -22,13 +22,23 @@ import {
   HelpCircle,
   TrendingUp,
   Sliders,
-  AlertCircle
+  AlertCircle,
+  Sun,
+  Moon,
+  Laptop
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Theme Management (Default is 'dark' Mode on first view)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
+    const saved = localStorage.getItem("theme_preference");
+    if (saved) return saved as 'light' | 'dark' | 'system';
+    return 'dark'; // Dark Mode as default first theme!
+  });
 
   // Settings Panel state
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -37,6 +47,34 @@ export default function App() {
   const [configAppId, setConfigAppId] = useState("");
   const [configSuccess, setConfigSuccess] = useState(false);
   const [resetClicked, setResetClicked] = useState(false);
+
+  // Apply theme dynamically
+  useEffect(() => {
+    const applyTheme = () => {
+      const root = document.documentElement;
+      root.classList.remove("light", "dark");
+      
+      let activeTheme: 'light' | 'dark' = 'light';
+      if (theme === 'system') {
+        const mql = window.matchMedia("(prefers-color-scheme: dark)");
+        activeTheme = mql.matches ? 'dark' : 'light';
+      } else {
+        activeTheme = theme;
+      }
+      
+      root.classList.add(activeTheme);
+      localStorage.setItem("theme_preference", theme);
+    };
+
+    applyTheme();
+
+    if (theme === 'system') {
+      const mql = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleChange = () => applyTheme();
+      mql.addEventListener("change", handleChange);
+      return () => mql.removeEventListener("change", handleChange);
+    }
+  }, [theme]);
 
   // Load session from localStorage on mount (persistent login) and set document title
   useEffect(() => {
@@ -151,37 +189,83 @@ export default function App() {
   return (
     <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full liquid-bg text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white p-2.5 sm:p-4 box-border overflow-hidden relative z-10 font-sans">
       
-      {/* Real vs Mock banner helper - Redesigned as a premium glassy metadata anchor */}
-      <div className="bg-slate-950/40 border border-white/5 rounded-xl text-center py-1.5 px-3 text-[10.5px] font-mono flex items-center justify-center gap-1.5 flex-wrap backdrop-blur-md z-30 shrink-0">
-        {isRealFirebase ? (
-          <>
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-slate-400 font-sans font-medium">Secure Core Active:</span>
-            <span className="rounded-md glass-badge-green px-2 py-0.5 text-[8.5px] font-bold tracking-wider">
-              {configProjectId || "Production"}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
-            </span>
-            <span className="text-slate-400 font-sans text-[10px] font-medium">Environment Mirror:</span>
-            <span className="rounded-md glass-badge-amber px-1.5 py-0.2 text-[8px] font-bold tracking-wider">
-              DEMO SANDBOX ACTIVE
-            </span>
-            <button 
-              onClick={() => setShowConfigModal(true)}
-              className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold hover:underline ml-1 transition-colors font-sans"
-            >
-              Configure Firebase
-            </button>
-          </>
-        )}
+      {/* Real vs Mock banner helper - Redesigned as a premium glassy metadata anchor with Theme selector */}
+      <div className="bg-slate-950/40 border border-white/5 rounded-xl py-1.5 px-3 text-[10.5px] font-mono flex items-center justify-between gap-3 backdrop-blur-md z-30 shrink-0 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {isRealFirebase ? (
+            <>
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-slate-400 font-sans font-medium">Secure Core Active:</span>
+              <span className="rounded-md glass-badge-green px-2 py-0.5 text-[8.5px] font-bold tracking-wider">
+                {configProjectId || "Production"}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+              </span>
+              <span className="text-slate-400 font-sans text-[10px] font-medium">Environment Mirror:</span>
+              <span className="rounded-md glass-badge-amber px-1.5 py-0.2 text-[8px] font-bold tracking-wider">
+                DEMO SANDBOX ACTIVE
+              </span>
+              <button 
+                type="button"
+                onClick={() => setShowConfigModal(true)}
+                className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold hover:underline ml-1 transition-colors font-sans cursor-pointer"
+              >
+                Configure Firebase
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Dynamic theme switcher segment container */}
+        <div className="flex items-center bg-black/15 dark:bg-white/5 p-0.5 rounded-lg border border-white/5 shrink-0 self-center">
+          <button
+            type="button"
+            onClick={() => setTheme('light')}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
+              theme === 'light' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Light Mode"
+          >
+            <Sun className="h-3.5 w-3.5" />
+            <span className="theme-btn-text">Light</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
+              theme === 'dark' 
+                ? 'bg-slate-900 text-cyan-400 shadow-sm' 
+                : 'text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="Dark Mode"
+          >
+            <Moon className="h-3.5 w-3.5" />
+            <span className="theme-btn-text">Dark</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme('system')}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
+              theme === 'system' 
+                ? 'bg-slate-700 text-indigo-300 shadow-sm' 
+                : 'text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+            title="System Preference"
+          >
+            <Laptop className="h-3.5 w-3.5" />
+            <span className="theme-btn-text">System</span>
+          </button>
+        </div>
       </div>
 
       <main className="grow flex flex-col justify-stretch overflow-hidden min-h-0 mt-2">
