@@ -229,12 +229,14 @@ export default function App() {
           <button
             type="button"
             onClick={() => setTheme('light')}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
+            className={`flex items-center gap-1 px-2 min-h-[44px] rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
               theme === 'light' 
                 ? 'bg-white text-blue-600 shadow-sm' 
                 : 'text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Light Mode"
+            aria-label="Light mode"
+            aria-pressed={theme === 'light'}
           >
             <Sun className="h-3.5 w-3.5" />
             <span className="theme-btn-text">Light</span>
@@ -242,12 +244,14 @@ export default function App() {
           <button
             type="button"
             onClick={() => setTheme('dark')}
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
+            className={`flex items-center gap-1 px-2 min-h-[44px] rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
               theme === 'dark' 
                 ? 'bg-slate-900 text-cyan-400 shadow-sm' 
                 : 'text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="Dark Mode"
+            aria-label="Dark mode"
+            aria-pressed={theme === 'dark'}
           >
             <Moon className="h-3.5 w-3.5" />
             <span className="theme-btn-text">Dark</span>
@@ -255,12 +259,14 @@ export default function App() {
           <button
             type="button"
             onClick={() => setTheme('system')}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
+            className={`flex items-center gap-1 px-1.5 min-h-[44px] rounded-md text-[9.5px] font-bold tracking-wide transition-all cursor-pointer ${
               theme === 'system' 
                 ? 'bg-slate-700 text-indigo-300 shadow-sm' 
                 : 'text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
             title="System Preference"
+            aria-label="System theme"
+            aria-pressed={theme === 'system'}
           >
             <Laptop className="h-3.5 w-3.5" />
             <span className="theme-btn-text">System</span>
@@ -314,7 +320,8 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => setShowConfigModal(false)}
-                  className="rounded-lg border border-white/5 bg-white/[0.04] hover:bg-white/[0.08] p-1.5 text-slate-400 hover:text-white transition"
+                  aria-label="Close configuration"
+                  className="rounded-lg border border-white/5 bg-white/[0.04] hover:bg-white/[0.08] p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-white transition"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -330,9 +337,10 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Firebase Project ID</label>
+                  <label htmlFor="config-project-id" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Firebase Project ID</label>
                   <input
                     type="text"
+                    id="config-project-id"
                     value={configProjectId}
                     onChange={(e) => setConfigProjectId(e.target.value)}
                     placeholder="Enter project ID (e.g. repo-tracker-343)"
@@ -341,9 +349,11 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Web SDK API Key</label>
+                  <label htmlFor="config-api-key" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Web SDK API Key</label>
                   <input
                     type="password"
+                    id="config-api-key"
+                    autoComplete="off"
                     value={configApiKey}
                     onChange={(e) => setConfigApiKey(e.target.value)}
                     placeholder="AIzaSy..."
@@ -352,9 +362,10 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Application App ID (Optional)</label>
+                  <label htmlFor="config-app-id" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Application App ID (Optional)</label>
                   <input
                     type="text"
+                    id="config-app-id"
                     value={configAppId}
                     onChange={(e) => setConfigAppId(e.target.value)}
                     placeholder="1:947485617795:web:..."

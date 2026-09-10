@@ -156,7 +156,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               className="mt-4 space-y-3.5"
             >
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                <label htmlFor="login-mobile-input" className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
                   Username or Mobile
                 </label>
                 <div className="relative mt-1">
@@ -166,6 +166,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <input
                     type="text"
                     id="login-mobile-input"
+                    autoComplete="username"
                     value={usernameOrMobile}
                     onChange={(e) => setUsernameOrMobile(e.target.value)}
                     className="block w-full py-3 pl-10 pr-3 text-sm text-white placeholder-slate-600 outline-none transition-all glass-input font-mono"
@@ -177,7 +178,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                <label htmlFor="login-password-input" className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
                   Password
                 </label>
                 <div className="relative mt-1">
@@ -187,6 +188,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <input
                     type={showPassword ? "text" : "password"}
                     id="login-password-input"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="block w-full py-3 pl-10 pr-10 text-sm text-white placeholder-slate-600 outline-none transition-all glass-input font-mono"
@@ -196,7 +198,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-300 transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 min-w-[44px] justify-center text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -207,6 +210,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <motion.div 
                   initial={{ opacity: 0, y: -5 }} 
                   animate={{ opacity: 1, y: 0 }}
+                  role="alert"
                   className="rounded-lg bg-red-950/20 border border-red-500/20 p-3 text-xs text-red-300 leading-relaxed font-sans font-medium"
                 >
                   {error}
@@ -238,7 +242,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             >
               <div className="rounded-lg bg-indigo-500/5 border border-indigo-500/15 p-3.5 text-left">
                 <p className="text-[10px] font-bold text-indigo-400 font-mono uppercase tracking-widest flex items-center gap-1.5">
-                  🛡️ First Time Device Verification
+                  <Shield className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> First Time Device Verification
                 </p>
                 <p className="mt-1.5 text-xs text-slate-300 leading-relaxed font-sans font-medium">
                   Welcome to the platform! Since this is your first sign-in log, you are required to verify the device.
@@ -252,7 +256,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono pb-1">
+                <label htmlFor="otp-input" className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono pb-1">
                   Enter Secure OTP
                 </label>
                 <div className="relative mt-1">
@@ -262,6 +266,8 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                   <input
                     type="text"
                     id="otp-input"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     value={otpValue}
                     onChange={(e) => setOtpValue(e.target.value.trim().replace(/\D/g, ""))}
                     maxLength={4}
@@ -274,7 +280,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </div>
 
               {error && (
-                <div className="rounded-lg bg-red-950/20 border border-red-500/20 p-3 text-xs text-red-300 font-sans font-medium">
+                <div role="alert" className="rounded-lg bg-red-950/20 border border-red-500/20 p-3 text-xs text-red-300 font-sans font-medium">
                   {error}
                 </div>
               )}

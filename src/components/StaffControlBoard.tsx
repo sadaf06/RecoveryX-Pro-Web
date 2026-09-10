@@ -18,6 +18,7 @@ import {
   Trash2,
   FileSpreadsheet,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   Eye,
   Lock,
@@ -802,7 +803,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             </div>
             <button
               onClick={onLogout}
-              className="text-rose-400 hover:text-rose-300 transition-all p-2 rounded-lg hover:bg-rose-500/10 cursor-pointer"
+              aria-label="Logout"
+              className="text-rose-400 hover:text-rose-300 transition-all p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-rose-500/10 cursor-pointer"
             >
               <LogOut className="w-5.5 h-5.5" />
             </button>
@@ -814,7 +816,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setActiveTab("DASHBOARD")}
-                className="text-slate-300 hover:text-white transition-colors p-1 cursor-pointer"
+                aria-label="Back to dashboard"
+                className="text-slate-300 hover:text-white transition-colors p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
               >
                 <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               </button>
@@ -826,7 +829,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
               </h1>
             </div>
             {activeTab === "USERS" && (
-               <button onClick={loadUsers} className="text-slate-300 hover:text-white transition-colors cursor-pointer">
+               <button onClick={loadUsers} aria-label="Refresh users" className="text-slate-300 hover:text-white transition-colors cursor-pointer p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center">
                  <RefreshCw className="h-4.5 w-4.5" />
                </button>
             )}
@@ -1016,6 +1019,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="mt-4 rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-xs text-red-400 flex items-start gap-2.5"
+              role="alert"
             >
               <AlertCircle className="h-5 w-5 shrink-0 text-red-400 mt-0.5" />
               <div>
@@ -1031,6 +1035,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="mt-4 rounded-xl border border-green-500/30 bg-green-950/20 p-4 text-xs text-green-400 flex items-start gap-2.5"
+              role="status"
             >
               <CheckCircle className="h-5 w-5 shrink-0 text-green-400 mt-0.5" />
               <div>
@@ -1118,7 +1123,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       <h3 className="text-lg font-bold text-white tracking-tight">Provision Identity</h3>
                       <p className="text-xs text-slate-500">Create a new access endpoint in the network</p>
                     </div>
-                    <button onClick={() => setShowUserForm(false)} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 transition-colors">
+                    <button onClick={() => setShowUserForm(false)} aria-label="Close form" className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -1126,9 +1131,11 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   <form onSubmit={handleCreateUser} className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Operator Name</label>
+                        <label htmlFor="new-user-name" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Operator Name</label>
                         <input
                           type="text"
+                          id="new-user-name"
+                          autoComplete="name"
                           value={newUserName}
                           onChange={(e) => setNewUserName(e.target.value)}
                           placeholder="E.g., Sanjay Lal"
@@ -1136,9 +1143,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Indicator (10-Digit Login ID)</label>
+                        <label htmlFor="new-user-mobile" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Indicator (10-Digit Login ID)</label>
                         <input
-                          type="text"
+                          type="tel"
+                          id="new-user-mobile"
+                          inputMode="numeric"
+                          autoComplete="tel"
                           value={newUserMobile}
                           onChange={(e) => setNewUserMobile(e.target.value.trim())}
                           placeholder="E.g., 9876543210"
@@ -1146,8 +1156,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Access Clearance</label>
+                        <label htmlFor="new-user-role" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Access Clearance</label>
                         <select
+                          id="new-user-role"
                           value={newUserRole}
                           onChange={(e) => setNewUserRole(e.target.value as UserRole)}
                           className="block w-full rounded-xl border border-white/10 bg-[#0A0D14] px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium appearance-none"
@@ -1158,9 +1169,11 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Password (6 Alphanumeric Keys)</label>
+                        <label htmlFor="new-user-password" className="text-xs font-bold text-slate-400 uppercase tracking-wider">Password (6 Alphanumeric Keys)</label>
                         <input
                           type="text"
+                          id="new-user-password"
+                          autoComplete="new-password"
                           value={newUserPassword}
                           onChange={(e) => setNewUserPassword(e.target.value)}
                           placeholder="6-char Alphanumeric key"
@@ -1220,7 +1233,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                               <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-white/5">
                                 <button
                                   onClick={() => openEditModal(u)}
-                                  className="flex items-center gap-1 rounded-md bg-white/5 hover:bg-white/10 border border-transparent text-[10px] sm:text-xs font-bold px-2 py-1.5 text-white transition-colors flex-1 justify-center"
+                                  className="flex items-center gap-1 rounded-md bg-white/5 hover:bg-white/10 border border-transparent text-[10px] sm:text-xs font-bold px-2 min-h-[44px] text-white transition-colors flex-1 justify-center"
                                 >
                                   <Settings className="h-3 w-3 text-slate-400" />
                                   Config
@@ -1229,7 +1242,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 <button
                                   onClick={() => handleToggleUserStatus(u)}
                                   disabled={isSelf}
-                                  className={`flex items-center gap-1 rounded-md border text-[10px] sm:text-xs font-bold px-2 py-1.5 transition-colors flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed ${
+                                  className={`flex items-center gap-1 rounded-md border text-[10px] sm:text-xs font-bold px-2 min-h-[44px] transition-colors flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed ${
                                     u.status === 'ACTIVE' 
                                       ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20' 
                                       : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
@@ -1242,7 +1255,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 {u.registered_device_id ? (
                                   <button
                                     onClick={() => handleDebindDevice(u)}
-                                    className="flex items-center gap-1 rounded-md bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 text-[10px] sm:text-xs font-bold px-2 py-1.5 text-amber-500 transition-colors flex-1 justify-center"
+                                    className="flex items-center gap-1 rounded-md bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 text-[10px] sm:text-xs font-bold px-2 min-h-[44px] text-amber-500 transition-colors flex-1 justify-center"
                                   >
                                     <Lock className="h-3 w-3" />
                                     Unbind
@@ -1250,7 +1263,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 ) : (
                                   <button
                                     onClick={() => handleBindDevice(u)}
-                                    className="flex items-center gap-1 rounded-md bg-indigo-500/10 border-indigo-500/20 hover:bg-indigo-500/20 text-[10px] sm:text-xs font-bold px-2 py-1.5 text-indigo-400 transition-colors flex-1 justify-center"
+                                    className="flex items-center gap-1 rounded-md bg-indigo-500/10 border-indigo-500/20 hover:bg-indigo-500/20 text-[10px] sm:text-xs font-bold px-2 min-h-[44px] text-indigo-400 transition-colors flex-1 justify-center"
                                   >
                                     <Smartphone className="h-3 w-3" />
                                     Bind
@@ -1260,7 +1273,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 <button
                                   onClick={() => handleDeleteUser(u.mobile)}
                                   disabled={isSelf}
-                                  className="flex items-center justify-center p-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  aria-label={`Delete user ${u.name}`}
+                                  className="flex items-center justify-center p-2.5 min-h-[44px] min-w-[44px] rounded-md bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -1342,7 +1356,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  className="rounded-lg border border-slate-800 bg-slate-950 p-1.5 text-slate-400 hover:text-white hover:border-slate-700 transition"
+                  aria-label="Close edit dialog"
+                  className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 transition"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -1350,9 +1365,11 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
               <form onSubmit={handleSaveEditUser} className="p-5 space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Full Name</label>
+                  <label htmlFor="edit-user-name" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Full Name</label>
                   <input
                     type="text"
+                    id="edit-user-name"
+                    autoComplete="name"
                     value={editUserName}
                     onChange={(e) => setEditUserName(e.target.value)}
                     className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-sans"
@@ -1361,22 +1378,27 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Mobile (10-Digit Login ID)</label>
+                  <label htmlFor="edit-user-mobile" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Mobile (10-Digit Login ID)</label>
                   <input
-                    type="text"
+                    type="tel"
+                    id="edit-user-mobile"
+                    inputMode="numeric"
+                    autoComplete="tel"
                     value={editUserMobile}
                     onChange={(e) => setEditUserMobile(e.target.value.trim())}
                     placeholder="E.g., 9876543210"
                     className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
                     required
                   />
-                  <span className="text-[9px] text-slate-500 block font-mono">⚠️ Modifying this updates document index references dynamically.</span>
+                  <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono"><AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" /> Modifying this updates document index references dynamically.</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Security Password (6 Alphanumeric Keys)</label>
+                  <label htmlFor="edit-user-password" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">Security Password (6 Alphanumeric Keys)</label>
                   <input
                     type="text"
+                    id="edit-user-password"
+                    autoComplete="new-password"
                     value={editUserPassword}
                     onChange={(e) => setEditUserPassword(e.target.value)}
                     placeholder="6-char Alphanumeric"
@@ -1386,8 +1408,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">System Role Level</label>
+                  <label htmlFor="edit-user-role" className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">System Role Level</label>
                   <select
+                    id="edit-user-role"
                     value={editUserRole}
                     onChange={(e) => setEditUserRole(e.target.value as UserRole)}
                     className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-teal-500 font-mono"
@@ -1560,7 +1583,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                               <button
                                 onClick={() => handleDeleteFile(item)}
                                 id={`delete-file-btn-${item.id}`}
-                                className="rounded-lg border border-transparent hover:border-rose-500/20 bg-white/5 hover:bg-rose-500/10 p-2 text-slate-400 hover:text-rose-400 transition-colors relative z-10"
+                                aria-label={`Delete file ${item.file_name}`}
+                                className="rounded-lg border border-transparent hover:border-rose-500/20 bg-white/5 hover:bg-rose-500/10 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors relative z-10"
                                 title="Delete file and cascading vehicles"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1964,7 +1988,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                           {(isSuperAdmin || user.role === "ADMIN") && (
                                             <button 
                                               onClick={() => handleDeleteLog(log.id)}
-                                              className="text-slate-600 hover:text-rose-400 transition-colors p-1.5 rounded hover:bg-rose-500/10"
+                                              aria-label={`Delete trace ${log.vehicle_number}`}
+                                              className="text-slate-600 hover:text-rose-400 transition-colors p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-rose-500/10"
                                               title="Delete Trace"
                                             >
                                               <X className="w-4 h-4" />

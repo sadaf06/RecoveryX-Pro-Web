@@ -299,7 +299,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             <button
               onClick={handleSyncData}
               disabled={syncing}
-              className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 px-2.5 py-1.5 text-[10px] font-bold font-sans transition-all active:scale-95 focus:outline-none cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 px-2.5 min-h-[44px] text-[10px] font-bold font-sans transition-all active:scale-95 focus:outline-none cursor-pointer"
             >
               <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin text-amber-400' : ''}`} />
               <span className="hidden sm:inline">Sync Registry</span>
@@ -307,7 +307,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             </button>
             <button
               onClick={onLogout}
-              className="rounded-lg bg-white/5 border border-white/5 hover:bg-rose-500/10 hover:border-rose-500/25 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 hover:text-rose-400 transition-all active:scale-95 cursor-pointer"
+              className="rounded-lg bg-white/5 border border-white/5 hover:bg-rose-500/10 hover:border-rose-500/25 px-2.5 min-h-[44px] text-[10px] font-bold text-slate-300 hover:text-rose-400 transition-all active:scale-95 cursor-pointer"
             >
               {isInsideAdmin ? "Return" : "Lockout"}
             </button>
@@ -321,11 +321,12 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
         <div className="relative flex items-center bg-slate-950/80 border border-white/10 rounded-lg p-0.5 shrink-0">
           <select
             value={searchFilter}
+            aria-label="Search field"
             onChange={(e) => {
               setSearchFilter(e.target.value as FilterType);
               setSearchQuery("");
             }}
-            className="appearance-none font-mono text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-transparent pr-6 pl-2.5 py-1.5 focus:outline-none cursor-pointer"
+            className="appearance-none font-mono text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-transparent pr-6 pl-2.5 min-h-[44px] focus:outline-none cursor-pointer"
           >
             <option value="VEHICLE_LAST_4" className="bg-[#0A0D14]">Plate</option>
             <option value="GENERAL" className="bg-[#0A0D14]">Omni</option>
@@ -346,6 +347,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
           <input
             type="text"
             value={searchQuery}
+            aria-label="Search vehicles"
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={
               searchFilter === "VEHICLE_LAST_4" ? "Enter Plate characters (e.g. 5621)..." :
@@ -353,12 +355,13 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               searchFilter === "CHASSIS_LAST_4" ? "Enter Chassis metrics..." :
               searchFilter === "LOAN_STARTS" ? "Enter Agreement metrics..." : "Type custom parameters..."
             }
-            className="block w-full py-2 pl-9 pr-9 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 glass-input font-mono tracking-wide"
+            className="block w-full py-3 pl-9 pr-11 text-xs text-white placeholder-slate-600 outline-none transition-all duration-300 glass-input font-mono tracking-wide"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-white transition-colors"
+              aria-label="Clear search"
+              className="absolute inset-y-0 right-0 flex items-center justify-center min-w-[44px] text-slate-500 hover:text-white transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -507,14 +510,16 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleExportPDF}
-                    className="rounded-lg bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all duration-200 cursor-pointer"
+                    aria-label="Export as PDF"
+                    className="rounded-lg bg-white/5 hover:bg-white/10 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 cursor-pointer"
                     title="Export as PDF"
                   >
                     <Printer className="w-4 h-4" />
                   </button>
                   <button
                     onClick={handleShareText}
-                    className="rounded-lg bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all duration-200 cursor-pointer"
+                    aria-label="Share as text"
+                    className="rounded-lg bg-white/5 hover:bg-white/10 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200 cursor-pointer"
                     title="Share as Text"
                   >
                     <Share2 className="w-4 h-4" />
@@ -522,7 +527,8 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                   <div className="w-px h-4 bg-white/10 mx-1"></div>
                   <button
                     onClick={() => setSelectedVehicle(null)}
-                    className="rounded-lg bg-white/5 hover:bg-rose-500/10 p-1.5 text-slate-400 hover:text-rose-400 transition-all duration-200 cursor-pointer"
+                    aria-label="Close details"
+                    className="rounded-lg bg-white/5 hover:bg-rose-500/10 p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all duration-200 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
