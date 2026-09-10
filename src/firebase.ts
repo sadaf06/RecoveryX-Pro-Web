@@ -33,6 +33,7 @@ import {
   UploadedFile, 
   SearchHistory, 
   FieldPermissions, 
+  Subscription,
   FirebaseConnectionConfig 
 } from "./types";
 import firebaseConfig from "../firebase-applet-config.json";
@@ -384,6 +385,9 @@ const DEFAULT_LOGS_SEED: SearchHistory[] = [
   }
 ];
 
+// Empty by design: no doc means blocked until super-admin recharges.
+const DEFAULT_SUBS_SEED: Subscription[] = [];
+
 // Read collection from localStorage with direct schema-matching format
 function getLocalCollection<T>(key: string, seed: T[]): T[] {
   const cached = localStorage.getItem(`MOCK_FIRESTORE_${key}`);
@@ -420,6 +424,7 @@ export const FirebaseService = {
     localStorage.removeItem("MOCK_FIRESTORE_uploaded_files");
     localStorage.removeItem("MOCK_FIRESTORE_search_histories");
     localStorage.removeItem("MOCK_FIRESTORE_field_permissions");
+    localStorage.removeItem("MOCK_FIRESTORE_subscriptions");
     window.location.reload();
   },
 
@@ -829,5 +834,96 @@ export const FirebaseService = {
         saveLocalCollection("search_histories", []);
       }
     }
-  }
+  },
+
+  // Subscriptions (admin-level recharge gate)
+  getSubscription: async (adminMobile: string): Promise<Subscription | null> => {
+    if (isRealFirebase && dbInstance) {
+      const path = `subscriptions/${adminMobile}`;
+      try {
+        const snap = await getDoc(doc(dbInstance, 'subscriptions', adminMobile));
+        if (snap.exists()) {
+          return { admin_mobile: snap.id, ...(snap.data() as any) } as Subscription;
+        }
+        return null;
+      } catch (e) {
+        handleFirestoreError(e, OperationType.GET, path);
+      }
+    } else {
+      const list = getLocalCollection<Subscription>("subscriptions", DEFAULT_SUBS_SEED);
+      return list.find(s => s.admin_mobile === adminMobile) || null;
+    }
+  },
+
+  saveSubscription: async (sub: Subscription): Promise<void> => {
+    if (isRealFirebase && dbInstance) {
+      const path = `subscriptions/${sub.admin_mobile}`;
+      try {
+        await setDoc(doc(dbInstance, 'subscriptions', sub.admin_mobile), sub);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, path);
+      }
+    } else {
+      const list = getLocalCollection<Subscription>("subscriptions", DEFAULT_SUBS_SEED);
+      saveLocalCollection("subscriptions", [
+        ...list.filter(s => s.admin_mobile !== sub.admin_mobile),
+        sub
+      ]);
+    }
+  },
+
 };
+
+// -------------------------------------------------------------
+// 5. SUBSCRIPTION GATE (recharge khatm -> login band)
+// -------------------------------------------------------------
+// Super admin (role SUPER_ADMIN or mobile "admin") is always exempt,
+// otherwise nobody could renew once everything expires.
+export function isExemptUser(user: { role: string; mobile: string }): boolean {
+  return user.role === "SUPER_ADMIN" || user.mobile === "admin";
+}
+
+export function resolveSubscriptionOwner(user: DBUser): string | null {
+  if (isExemptUser(user)) return null;
+  if (user.role === "ADMIN") return user.mobile;
+  return user.creator_mobile || user.mobile;
+}
+
+export interface SubscriptionCheck {
+  ok: boolean;
+  subscription: Subscription | null;
+}
+
+export async function checkUserSubscription(user: DBUser): Promise<SubscriptionCheck> {
+  const owner = resolveSubscriptionOwner(user);
+  if (!owner) return { ok: true, subscription: null };
+  try {
+    // Strict mode: no doc, expired, inactive, or auto-trial => blocked.
+    // Only a super-admin recharge (30D/90D/365D) unlocks login.
+    const sub = await FirebaseService.getSubscription(owner);
+    const now = Date.now();
+    if (!sub || sub.status !== "ACTIVE" || sub.expires_at <= now || sub.plan_name.startsWith("TRIAL_")) {
+      return { ok: false, subscription: sub };
+    }
+    return { ok: true, subscription: sub };
+  } catch (e) {
+    // Offline / unreachable: fail-open so field work doesn't stop.
+    console.warn("Subscription check failed, allowing login (offline mode?).", e);
+    return { ok: true, subscription: null };
+  }
+}
+
+export function subscriptionDaysLeft(sub: Subscription): number {
+  return Math.ceil((sub.expires_at - Date.now()) / 86400000);
+}
+
+// UI state shared by badges/banners — mirrors the login gate exactly.
+export type SubscriptionState = "active" | "expiring" | "blocked" | "none";
+
+export function getSubscriptionState(sub: Subscription | null): SubscriptionState {
+  if (!sub) return "none";
+  if (sub.status !== "ACTIVE" || sub.expires_at <= Date.now() || sub.plan_name.startsWith("TRIAL_")) {
+    return "blocked";
+  }
+  return subscriptionDaysLeft(sub) <= 7 ? "expiring" : "active";
+}

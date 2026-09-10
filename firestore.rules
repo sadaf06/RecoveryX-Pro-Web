@@ -50,8 +50,7 @@ service cloud.firestore {
              data.creator_mobile is string && data.creator_mobile.size() <= 30;
     }
 
-    function isValidFieldPermissions(data) {
-      return data.keys().hasAll(['role_string', 'role', 'show_customer_name', 'show_vehicle_number', 'show_bank_name', 'show_pos', 'show_emi', 'show_engine_number', 'show_chassis_number', 'show_confirmer_name', 'show_loan_no']) &&
+    function isValidFieldPermissions(data) {      return data.keys().hasAll(['role_string', 'role', 'show_customer_name', 'show_vehicle_number', 'show_bank_name', 'show_pos', 'show_emi', 'show_engine_number', 'show_chassis_number', 'show_confirmer_name', 'show_loan_no']) &&
              data.role_string is string && data.role_string.size() <= 128 &&
              data.role == "NORMAL_USER" &&
              data.show_customer_name is bool &&
@@ -63,6 +62,15 @@ service cloud.firestore {
              data.show_chassis_number is bool &&
              data.show_confirmer_name is bool &&
              data.show_loan_no is bool;
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll(['admin_mobile', 'plan_name', 'starts_at', 'expires_at', 'status']) &&
+             data.admin_mobile is string && data.admin_mobile.size() <= 30 &&
+             data.plan_name is string && data.plan_name.size() <= 30 &&
+             data.starts_at is number &&
+             data.expires_at is number &&
+             data.status in ['ACTIVE', 'EXPIRED'];
     }
 
     // --- COLLECTION MATCHES ---
@@ -99,6 +107,13 @@ service cloud.firestore {
     match /field_permissions/{permId} {
       allow read: if true;
       allow create, update: if isValidFieldPermissions(request.resource.data);
+      allow delete: if true;
+    }
+
+    // 6. Subscriptions Collection rules (admin-level recharge gate)
+    match /subscriptions/{adminMobile} {
+      allow read: if true;
+      allow create, update: if isValidSubscription(request.resource.data);
       allow delete: if true;
     }
   }

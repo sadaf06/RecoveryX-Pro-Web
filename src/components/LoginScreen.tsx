@@ -5,20 +5,21 @@
 
 import React, { useState } from "react";
 import { User } from "../types";
-import { FirebaseService } from "../firebase";
+import { FirebaseService, checkUserSubscription } from "../firebase";
 import { Shield, Smartphone, Key, RefreshCw, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface LoginScreenProps {
   onLoginSuccess: (user: User) => void;
+  initialError?: string;
 }
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, initialError }: LoginScreenProps) {
   const [usernameOrMobile, setUsernameOrMobile] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError || "");
 
   // First time login state
   const [pendingUser, setPendingUser] = useState<User | null>(null);
@@ -59,6 +60,14 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       // Plain/Mock password verification (in live, mapped securely or checked)
       if (matched.password !== password.trim()) {
         setError("Incorrect password. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Subscription gate: recharge khatm -> login band
+      const subCheck = await checkUserSubscription(matched);
+      if (!subCheck.ok) {
+        setError("No active subscription. Please recharge to continue.");
         setLoading(false);
         return;
       }

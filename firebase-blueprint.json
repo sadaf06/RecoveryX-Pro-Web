@@ -188,6 +188,43 @@
         "show_pos", "show_emi", "show_engine_number", "show_chassis_number", 
         "show_confirmer_name", "show_loan_no"
       ]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Admin-level recharge record gating login for the whole team.",
+      "type": "object",
+      "properties": {
+        "admin_mobile": {
+          "type": "string",
+          "description": "Admin mobile acting as document ID"
+        },
+        "plan_name": {
+          "type": "string",
+          "description": "Plan label e.g. TRIAL_30D, 30D, 90D, 365D"
+        },
+        "starts_at": {
+          "type": "number",
+          "description": "Start millisecond epoch timestamp"
+        },
+        "expires_at": {
+          "type": "number",
+          "description": "Expiry millisecond epoch timestamp"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "EXPIRED"],
+          "description": "Subscription state"
+        },
+        "updated_at": {
+          "type": "number",
+          "description": "Last recharge millisecond epoch timestamp"
+        },
+        "updated_by": {
+          "type": "string",
+          "description": "Mobile who last recharged"
+        }
+      },
+      "required": ["admin_mobile", "plan_name", "starts_at", "expires_at", "status"]
     }
   },
   "firestore": {
@@ -210,6 +247,10 @@
     "field_permissions/{permId}": {
       "schema": "FieldPermissions",
       "description": "Agent configuration masks controlling detail UI listings"
+    },
+    "subscriptions/{adminMobile}": {
+      "schema": "Subscription",
+      "description": "Admin recharge records gating team login"
     }
   }
 }

@@ -78,3 +78,15 @@ export interface FirebaseConnectionConfig {
   messagingSenderId: string;
   appId: string;
 }
+
+export type SubscriptionStatus = "ACTIVE" | "EXPIRED";
+
+export interface Subscription {
+  admin_mobile: string; // Document ID = admin mobile (whole team gated by this)
+  plan_name: string; // e.g. "TRIAL_30D", "30D", "90D", "365D"
+  starts_at: number; // ms epoch
+  expires_at: number; // ms epoch
+  status: SubscriptionStatus;
+  updated_at: number; // ms epoch
+  updated_by: string; // mobile who last recharged
+}

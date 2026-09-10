@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from "react";
 import { User, FirebaseConnectionConfig } from "./types";
-import { FirebaseService, isRealFirebase } from "./firebase";
+import { FirebaseService, isRealFirebase, checkUserSubscription } from "./firebase";
 import LoginScreen from "./components/LoginScreen";
 import AgentView from "./components/AgentView";
 import StaffControlBoard from "./components/StaffControlBoard";
@@ -48,6 +48,9 @@ export default function App() {
   const [configSuccess, setConfigSuccess] = useState(false);
   const [resetClicked, setResetClicked] = useState(false);
 
+  // Subscription-block message shown on login screen after session restore
+  const [loginError, setLoginError] = useState("");
+
   // Apply theme dynamically
   useEffect(() => {
     const applyTheme = () => {
@@ -79,15 +82,26 @@ export default function App() {
   // Load session from localStorage on mount (persistent login) and set document title
   useEffect(() => {
     document.title = "RecoveryX Pro";
-    const cachedUser = localStorage.getItem("ACTIVE_USER_SESSION");
-    if (cachedUser) {
-      try {
-        setCurrentUser(JSON.parse(cachedUser));
-      } catch (e) {
-        console.error("Failed to parse session cache", e);
+    const restoreSession = async () => {
+      const cachedUser = localStorage.getItem("ACTIVE_USER_SESSION");
+      if (cachedUser) {
+        try {
+          const parsed: User = JSON.parse(cachedUser);
+          // Subscription gate also applies to restored sessions
+          const subCheck = await checkUserSubscription(parsed);
+          if (subCheck.ok) {
+            setCurrentUser(parsed);
+          } else {
+            localStorage.removeItem("ACTIVE_USER_SESSION");
+            setLoginError("No active subscription. Please recharge to continue.");
+          }
+        } catch (e) {
+          console.error("Failed to parse session cache", e);
+        }
       }
-    }
-    setAuthLoading(false);
+      setAuthLoading(false);
+    };
+    restoreSession();
 
     // Initialize config values if they exist
     const localConfigStr = localStorage.getItem("COMPANION_CUSTOM_FIREBASE_CONFIG");
@@ -107,6 +121,7 @@ export default function App() {
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
+    setLoginError("");
     localStorage.setItem("ACTIVE_USER_SESSION", JSON.stringify(user));
   };
 
@@ -276,7 +291,7 @@ export default function App() {
 
       <main className="grow flex flex-col justify-stretch overflow-hidden min-h-0 mt-2 w-full max-w-[1440px] mx-auto">
         {!currentUser ? (
-          <LoginScreen onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen onLoginSuccess={handleLoginSuccess} initialError={loginError} />
         ) : (currentUser.role === "NORMAL_USER" || currentUser.role === "OFFICE_STAFF") ? (
           <AgentView user={currentUser} onLogout={handleLogout} />
         ) : (

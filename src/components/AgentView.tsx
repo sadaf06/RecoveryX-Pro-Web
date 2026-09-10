@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { User, Vehicle, FieldPermissions, SearchHistory } from "../types";
 import { FirebaseService } from "../firebase";
 import { 
@@ -464,7 +465,8 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
         )}
       </div>
 
-      {/* Enterprise dossiers layout details window modal */}
+      {/* Enterprise dossiers layout details window modal (portalled to body so it never hides behind sticky header/sidebar) */}
+      {createPortal(
       <AnimatePresence>
         {selectedVehicle && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
@@ -641,7 +643,9 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
 
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 }

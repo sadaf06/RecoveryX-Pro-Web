@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { User, Vehicle, UploadedFile, FieldPermissions, SearchHistory, UserRole, UserStatus } from "../types";
-import { FirebaseService } from "../firebase";
+import { createPortal } from "react-dom";
+import { User, Vehicle, UploadedFile, FieldPermissions, SearchHistory, Subscription, UserRole, UserStatus } from "../types";
+import { FirebaseService, subscriptionDaysLeft, getSubscriptionState, isExemptUser } from "../firebase";
 import AgentView from "./AgentView";
 import * as XLSX from "xlsx";
 import { 
@@ -53,6 +54,44 @@ interface StaffControlBoardProps {
 
 type TabType = "DASHBOARD" | "SEARCH" | "USERS" | "IMPORT" | "PERMS" | "LOGS";
 
+// Manual recharge days control (fixed +30/+90/+365 ke saath custom input)
+function CustomDaysControl({ onExtend, notifyError, stretch }: {
+  onExtend: (days: number) => void;
+  notifyError: (msg: string) => void;
+  stretch?: boolean;
+}) {
+  const [val, setVal] = useState("");
+  const apply = () => {
+    const days = parseInt(val.trim(), 10);
+    if (!Number.isFinite(days) || days < 1 || days > 3650) {
+      notifyError("Validation Error: Enter custom recharge days between 1 and 3650.");
+      return;
+    }
+    onExtend(days);
+    setVal("");
+  };
+  return (
+    <div className={`flex items-center gap-1.5 ${stretch ? "flex-1 min-w-[160px]" : ""}`}>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={val}
+        onChange={(e) => setVal(e.target.value.replace(/\D/g, "").slice(0, 4))}
+        onKeyDown={(e) => { if (e.key === "Enter") apply(); }}
+        placeholder="Days"
+        aria-label="Custom recharge days"
+        className={`rounded-md bg-slate-950/60 border border-white/10 px-2 min-h-[44px] text-[11px] font-mono text-white placeholder-slate-600 outline-none focus:border-emerald-500/50 ${stretch ? "flex-1 min-w-0" : "w-16"}`}
+      />
+      <button
+        onClick={apply}
+        className="rounded-md bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-[10px] font-bold min-h-[44px] px-3 text-emerald-400 transition-colors cursor-pointer shrink-0"
+      >
+        Add
+      </button>
+    </div>
+  );
+}
+
 export default function StaffControlBoard({ user, onLogout }: StaffControlBoardProps) {
   // Web SUPER_ADMIN role + Android super-admin (mobile === "admin", role ADMIN) — dono ko super mano
   const isSuperAdmin = user.role === "SUPER_ADMIN" || user.mobile === "admin";
@@ -73,6 +112,130 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
   const confirmAction = (title: string, message: string, onConfirm: () => void) => {
     setConfirmDialog({ isOpen: true, title, message, onConfirm });
+  };
+
+  // -------------------------------------------------------------
+  // SUBSCRIPTIONS (super-admin manages admin recharges)
+  // -------------------------------------------------------------
+  const canManageSubs = isSuperAdmin;
+  const [subsMap, setSubsMap] = useState<Record<string, Subscription | null>>({});
+  const [ownSub, setOwnSub] = useState<Subscription | null>(null);
+  const [subAdmins, setSubAdmins] = useState<User[]>([]);
+
+  const loadSubscriptions = async (admins: User[]) => {
+    if (!canManageSubs) return;
+    setSubAdmins(admins);
+    try {
+      const entries = await Promise.all(
+        admins.map(async (a) => {
+          try {
+            return [a.mobile, await FirebaseService.getSubscription(a.mobile)] as const;
+          } catch {
+            return [a.mobile, null] as const;
+          }
+        })
+      );
+      setSubsMap(Object.fromEntries(entries));
+    } catch (e) {
+      console.error("Failed to load subscriptions", e);
+    }
+  };
+
+  const handleExtendSubscription = async (adminMobile: string, days: number) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      const now = Date.now();
+      const existing = await FirebaseService.getSubscription(adminMobile).catch(() => null);
+      // Sirf live paid plan pe stack karo. Trial/expired/inactive pe aaj se start —
+      // warna trial ke bekaar din paid validity me jud jaate hai.
+      const stacking =
+        existing &&
+        existing.status === "ACTIVE" &&
+        !existing.plan_name.startsWith("TRIAL_") &&
+        existing.expires_at > now;
+      const base = stacking && existing ? existing.expires_at : now;
+      const sub: Subscription = {
+        admin_mobile: adminMobile,
+        plan_name: `${days}D`,
+        starts_at: stacking && existing ? existing.starts_at : now,
+        expires_at: base + days * 86400000,
+        status: "ACTIVE",
+        updated_at: now,
+        updated_by: user.mobile
+      };
+      await FirebaseService.saveSubscription(sub);
+      setSubsMap(prev => ({ ...prev, [adminMobile]: sub }));
+      setSuccessMsg(`Recharge done: +${days} days for ${adminMobile} (till ${new Date(sub.expires_at).toLocaleDateString()}).`);
+    } catch (e) {
+      setErrorMsg("Failed to update subscription.");
+      console.error(e);
+    }
+  };
+
+  const handleBlockSubscription = async (adminMobile: string) => {
+    confirmAction(
+      "Block Subscription",
+      `Recharge band karne par ${adminMobile} aur uski poori team ka login turant band ho jayega. Continue?`,
+      async () => {
+        setErrorMsg("");
+        setSuccessMsg("");
+        try {
+          const now = Date.now();
+          const existing = await FirebaseService.getSubscription(adminMobile).catch(() => null);
+          const sub: Subscription = {
+            admin_mobile: adminMobile,
+            plan_name: existing?.plan_name ?? "NONE",
+            starts_at: existing?.starts_at ?? now,
+            expires_at: existing?.expires_at ?? now,
+            status: "EXPIRED",
+            updated_at: now,
+            updated_by: user.mobile
+          };
+          await FirebaseService.saveSubscription(sub);
+          setSubsMap(prev => ({ ...prev, [adminMobile]: sub }));
+          setSuccessMsg(`Subscription blocked for ${adminMobile}.`);
+        } catch (e) {
+          setErrorMsg("Failed to block subscription.");
+          console.error(e);
+        }
+      }
+    );
+  };
+
+  const subscriptionBadge = (u: User) => {    if (isExemptUser(u)) {
+      return (
+        <span className="bg-white/5 border border-white/10 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+          Exempt
+        </span>
+      );
+    }
+    const sub = subsMap[u.mobile];
+    const state = getSubscriptionState(sub);
+    if (state === "none") {
+      return (
+        <span className="bg-white/5 border border-white/10 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+          No recharge yet
+        </span>
+      );
+    }
+    if (state === "blocked") {
+      return (
+        <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+          Blocked
+        </span>
+      );
+    }
+    const days = sub ? subscriptionDaysLeft(sub) : 0;
+    return (
+      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider border ${
+        state === "expiring"
+          ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+          : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+      }`}>
+        {`${days}d left`}
+      </span>
+    );
   };
 
   // -------------------------------------------------------------
@@ -204,6 +367,10 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       // Only view users created by this admin or related
       const filtered = isSuperAdmin ? all : all.filter(u => u.creator_mobile === user.mobile || u.mobile === user.mobile);
       setUsersList(filtered);
+      // Super admin: also pull recharge status for admin nodes
+      if (canManageSubs) {
+        loadSubscriptions(filtered.filter(u => u.role === "ADMIN" || u.role === "SUPER_ADMIN"));
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -705,6 +872,18 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     switch (activeTab) {
       case "DASHBOARD":
         loadDashboardMetrics();
+        // Plain admin sees own recharge status on dashboard
+        if (isAdmin && !isSuperAdmin) {
+          FirebaseService.getSubscription(user.mobile)
+            .then(setOwnSub)
+            .catch(() => setOwnSub(null));
+        }
+        // Super admin sees full subscription overview on dashboard
+        if (canManageSubs) {
+          FirebaseService.getUsers()
+            .then(all => loadSubscriptions(all.filter(u => u.role === "ADMIN" || u.role === "SUPER_ADMIN")))
+            .catch(e => console.error("Failed to load subscription overview", e));
+        }
         break;
       case "USERS":
         loadUsers();
@@ -882,6 +1061,34 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         {/* DASHBOARD TAB VIEW */}
         {activeTab === "DASHBOARD" && (
           <div className="w-full max-w-7xl mx-auto space-y-5 lg:space-y-6">
+            {/* Recharge status for plain admins */}
+            {isAdmin && !isSuperAdmin && ownSub && (() => {
+              const state = getSubscriptionState(ownSub);
+              const days = subscriptionDaysLeft(ownSub);
+              const blocked = state === "blocked";
+              const expiring = state === "expiring";
+              return (
+              <div className={`rounded-2xl border p-4 flex items-center gap-3 ${
+                blocked
+                  ? "border-rose-500/25 bg-rose-500/5"
+                  : expiring
+                    ? "border-amber-500/25 bg-amber-500/5"
+                    : "border-emerald-500/20 bg-emerald-500/5"
+              }`}>
+                <ShieldCheck className={`w-5 h-5 shrink-0 ${blocked ? "text-rose-400" : expiring ? "text-amber-400" : "text-emerald-400"}`} />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white">
+                    Subscription: {blocked
+                      ? "Blocked — contact super admin for recharge"
+                      : `${days} days left`}
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    Valid till {new Date(ownSub.expires_at).toLocaleDateString()} • Plan {ownSub.plan_name}
+                  </p>
+                </div>
+              </div>
+              );
+            })()}
             {/* Stats Row — 2 cols on mobile, 3 cols on desktop */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
@@ -925,10 +1132,69 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
               </div>
             </div>
  
+            {/* Subscription overview for super admin */}
+            {canManageSubs && (
+              <div className="rounded-2xl border border-white/5 bg-white/[0.015] backdrop-blur-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Subscription Overview</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Recharge status per admin node</p>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                    {subAdmins.length} admin{subAdmins.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="space-y-2.5">
+                  {subAdmins.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-4 text-center">No admin nodes found.</p>
+                  ) : (
+                    subAdmins.map(a => {
+                      const sub = subsMap[a.mobile];
+                      return (
+                        <div key={a.mobile} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{a.name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono truncate">
+                              {a.mobile}{sub ? ` • ${sub.plan_name} • till ${new Date(sub.expires_at).toLocaleDateString()}` : " • no recharge yet"}
+                            </p>
+                          </div>
+                          <div className="shrink-0">{subscriptionBadge(a)}</div>
+                          {!isExemptUser(a) && (
+                          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                            {([30, 90, 365] as const).map(days => (
+                              <button
+                                key={days}
+                                onClick={() => handleExtendSubscription(a.mobile, days)}
+                                className="rounded-md bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-[10px] font-bold min-h-[44px] px-3 text-emerald-400 transition-colors cursor-pointer"
+                              >
+                                +{days}d
+                              </button>
+                            ))}
+                            <CustomDaysControl
+                              onExtend={(d) => handleExtendSubscription(a.mobile, d)}
+                              notifyError={(m) => { setErrorMsg(m); setSuccessMsg(""); }}
+                            />
+                            {["active", "expiring"].includes(getSubscriptionState(subsMap[a.mobile])) && (
+                              <button
+                                onClick={() => handleBlockSubscription(a.mobile)}
+                                className="rounded-md bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-[10px] font-bold min-h-[44px] px-3 text-rose-400 transition-colors cursor-pointer shrink-0"
+                              >
+                                Block
+                              </button>
+                            )}
+                          </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="pt-2 lg:grid lg:grid-cols-5 lg:gap-6 lg:items-start">
               <div className="lg:col-span-3">
-              <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3 font-mono">Console Actions</p>
-              <div className="space-y-3">
+              <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3 font-mono">Console Actions</p>              <div className="space-y-3">
                 <button 
                   onClick={() => setActiveTab("SEARCH")} 
                   className="w-full flex items-center justify-between p-4.5 rounded-2xl border border-white/10 bg-[#1e233d]/30 hover:bg-[#1e233d]/40 text-white shadow-xl shadow-indigo-500/5 hover:border-indigo-500/30 active:scale-[0.99] transition-all cursor-pointer group"
@@ -1046,7 +1312,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           )}
         </AnimatePresence>
 
-        {/* Global Confirm Actions */}
+        {/* Global Confirm Actions (portalled to body so it never hides behind sticky header/sidebar) */}
+        {createPortal(
         <AnimatePresence>
           {confirmDialog.isOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1090,7 +1357,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
               </motion.div>
             </div>
           )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+        )}
 
         {/* Tab Modules */}
         {activeTab !== "DASHBOARD" && (
@@ -1211,23 +1480,24 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 <div className={`flex items-center justify-center w-10 h-10 rounded-full border shrink-0 ${u.status === 'ACTIVE' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
                                   {u.status === 'ACTIVE' ? <CheckCircle className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
                                 </div>
-                                <div className="space-y-1 min-w-0">
-                                  <p className="text-white font-bold text-sm tracking-tight truncate">{u.name}</p>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="bg-white/5 border border-white/10 text-slate-300 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full tracking-wider">
-                                      {u.role.replace('_', ' ')}
-                                    </span>
-                                    {u.registered_device_id ? (
-                                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-wider">
-                                        <Smartphone className="h-2.5 w-2.5" /> Bound
+                                  <div className="space-y-1 min-w-0">
+                                    <p className="text-white font-bold text-sm tracking-tight truncate">{u.name}</p>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="bg-white/5 border border-white/10 text-slate-300 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full tracking-wider">
+                                        {u.role.replace('_', ' ')}
                                       </span>
-                                    ) : (
-                                      <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                                        Unbound
-                                      </span>
-                                    )}
+                                      {u.registered_device_id ? (
+                                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-wider">
+                                          <Smartphone className="h-2.5 w-2.5" /> Bound
+                                        </span>
+                                      ) : (
+                                        <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                          Unbound
+                                        </span>
+                                      )}
+                                      {canManageSubs && (u.role === "ADMIN" || u.role === "SUPER_ADMIN") && subscriptionBadge(u)}
+                                    </div>
                                   </div>
-                                </div>
                               </div>
                               
                               <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-white/5">
@@ -1279,6 +1549,34 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
                               </div>
+
+                              {canManageSubs && (u.role === "ADMIN" || u.role === "SUPER_ADMIN") && !isSelf && !isExemptUser(u) && (
+                                <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-white/5">
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 font-mono mr-1 shrink-0">Recharge:</span>
+                                  {([30, 90, 365] as const).map(days => (
+                                    <button
+                                      key={days}
+                                      onClick={() => handleExtendSubscription(u.mobile, days)}
+                                      className="flex-1 min-w-[64px] rounded-md bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-[10px] sm:text-xs font-bold min-h-[44px] text-emerald-400 transition-colors cursor-pointer"
+                                    >
+                                      +{days}d
+                                    </button>
+                                  ))}
+                                  <CustomDaysControl
+                                    stretch
+                                    onExtend={(d) => handleExtendSubscription(u.mobile, d)}
+                                    notifyError={(m) => { setErrorMsg(m); setSuccessMsg(""); }}
+                                  />
+                                  {["active", "expiring"].includes(getSubscriptionState(subsMap[u.mobile])) && (
+                                    <button
+                                      onClick={() => handleBlockSubscription(u.mobile)}
+                                      className="rounded-md bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 text-[10px] sm:text-xs font-bold min-h-[44px] px-3 text-rose-400 transition-colors cursor-pointer shrink-0"
+                                    >
+                                      Block
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         };
@@ -1331,7 +1629,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             </div>
           )}
 
-      {/* EDIT USER SPECIFICATIONS MODAL */}
+      {/* EDIT USER SPECIFICATIONS MODAL (portalled to body so it never hides behind sticky header/sidebar) */}
+      {createPortal(
       <AnimatePresence>
         {editingUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1482,7 +1781,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
 
           {/* TAB 2: DATA IMPORT */}
           {activeTab === "IMPORT" && (
