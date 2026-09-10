@@ -270,7 +270,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
           </div>
           <div className="hidden xs:block">
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-[11px] sm:text-xs font-extrabold tracking-[0.15em] text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
+              <h1 className="font-display text-[11px] sm:text-xs font-extrabold tracking-[0.15em] uppercase brand-gradient-text">
                 RecoveryX Pro
               </h1>
               <span className="glass-badge-blue px-2 py-0.5 rounded-full text-[8px] font-bold tracking-wider uppercase shrink-0">

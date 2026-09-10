@@ -792,7 +792,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-display text-base font-extrabold tracking-[0.15em] text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
+                <h1 className="font-display text-base font-extrabold tracking-[0.15em] uppercase brand-gradient-text">
                   RecoveryX Pro
                 </h1>
                 <span className="glass-badge-blue px-2.5 py-0.5 rounded-full text-[8.5px] font-mono tracking-wider uppercase font-bold shrink-0">
