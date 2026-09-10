@@ -187,10 +187,10 @@ export default function App() {
   }
 
   return (
-    <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full liquid-bg text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white p-2.5 sm:p-4 box-border overflow-hidden relative z-10 font-sans">
+    <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full liquid-bg text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white p-2.5 sm:p-4 lg:p-6 box-border overflow-hidden relative z-10 font-sans">
       
       {/* Real vs Mock banner helper - Redesigned as a premium glassy metadata anchor with Theme selector */}
-      <div className="bg-slate-950/40 border border-white/5 rounded-xl py-1.5 px-3 text-[10.5px] font-mono flex items-center justify-between gap-3 backdrop-blur-md z-30 shrink-0 flex-wrap">
+      <div className="bg-slate-950/40 border border-white/5 rounded-xl py-1.5 px-3 sm:px-4 text-[10.5px] font-mono flex items-center justify-between gap-3 backdrop-blur-md z-30 shrink-0 flex-wrap w-full max-w-[1440px] mx-auto">
         <div className="flex items-center gap-1.5 flex-wrap">
           {isRealFirebase ? (
             <>
@@ -268,7 +268,7 @@ export default function App() {
         </div>
       </div>
 
-      <main className="grow flex flex-col justify-stretch overflow-hidden min-h-0 mt-2">
+      <main className="grow flex flex-col justify-stretch overflow-hidden min-h-0 mt-2 w-full max-w-[1440px] mx-auto">
         {!currentUser ? (
           <LoginScreen onLoginSuccess={handleLoginSuccess} />
         ) : (currentUser.role === "NORMAL_USER" || currentUser.role === "OFFICE_STAFF") ? (

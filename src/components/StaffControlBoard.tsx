@@ -53,7 +53,8 @@ interface StaffControlBoardProps {
 type TabType = "DASHBOARD" | "SEARCH" | "USERS" | "IMPORT" | "PERMS" | "LOGS";
 
 export default function StaffControlBoard({ user, onLogout }: StaffControlBoardProps) {
-  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  // Web SUPER_ADMIN role + Android super-admin (mobile === "admin", role ADMIN) — dono ko super mano
+  const isSuperAdmin = user.role === "SUPER_ADMIN" || user.mobile === "admin";
   const isAdmin = user.role === "ADMIN" || isSuperAdmin;
   const [activeTab, setActiveTab] = useState<TabType>("DASHBOARD");
 
@@ -236,8 +237,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       return;
     }
 
-    if ((newUserRole === "ADMIN" || newUserRole === "SUPER_ADMIN") && !isSuperAdmin) {
-      setErrorMsg("Only Super Admin can create Admin or Super Admin roles.");
+    if (newUserRole === "SUPER_ADMIN") {
+      setErrorMsg("SUPER_ADMIN role cannot be assigned. Only 3 roles allowed: Normal User, HQ Staff, Admin.");
+      return;
+    }
+
+    if (newUserRole === "ADMIN" && !isSuperAdmin) {
+      setErrorMsg("Only Super Admin can create Admin role.");
       return;
     }
 
@@ -720,15 +726,69 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   }
 
   return (
-    <div className="h-full w-full bg-transparent text-slate-100 flex flex-col overflow-hidden relative z-10">
+    <div className="h-full w-full bg-transparent text-slate-100 flex flex-col lg:flex-row overflow-hidden relative z-10">
       {/* Decorative premium radial vector ambient lights */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none z-0" />
-      
-      {/* Dynamic Header Based on Tab */}
+
+      {/* Desktop sidebar — hidden on mobile */}
+      <aside className="hidden lg:flex w-72 shrink-0 flex-col border-r border-white/5 bg-slate-950/60 backdrop-blur-md relative z-20">
+        <div className="px-5 pt-6 pb-5 border-b border-white/5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+              <Shield className="w-4.5 h-4.5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-sm font-extrabold tracking-[0.15em] text-white uppercase truncate">RecoveryX Pro</h1>
+              <span className="glass-badge-blue px-2 py-0.5 rounded-full text-[8.5px] font-mono tracking-wider uppercase font-bold">HQ Admin</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 font-mono mt-3 truncate">Operator: <span className="text-slate-300">{user.name}</span></p>
+          <p className="text-[10px] text-slate-600 font-mono truncate">{user.mobile} • {user.role.replace('_', ' ')}</p>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {([
+            { id: "DASHBOARD" as TabType, label: "Dashboard", icon: <Database className="w-4.5 h-4.5" /> },
+            { id: "SEARCH" as TabType, label: "Global Search", icon: <Search className="w-4.5 h-4.5" /> },
+            ...(isAdmin ? [{ id: "USERS" as TabType, label: "Users & Staff", icon: <Users className="w-4.5 h-4.5" /> }] : []),
+            { id: "IMPORT" as TabType, label: "Data Import", icon: <Upload className="w-4.5 h-4.5" /> },
+            ...(isAdmin ? [{ id: "PERMS" as TabType, label: "Permissions", icon: <Lock className="w-4.5 h-4.5" /> }] : []),
+            { id: "LOGS" as TabType, label: "Audit Logs", icon: <History className="w-4.5 h-4.5" /> },
+          ]).map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all cursor-pointer ${
+                activeTab === item.id
+                  ? "bg-indigo-500/15 text-white border border-indigo-500/25 shadow-lg shadow-indigo-500/10"
+                  : "text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
+              }`}
+            >
+              <span className={activeTab === item.id ? "text-indigo-300" : "text-slate-500"}>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-white/5">
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-semibold text-rose-300/90 hover:text-rose-200 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer"
+          >
+            <LogOut className="w-4.5 h-4.5" />
+            Lockout / Logout
+          </button>
+          <p className="text-[10px] text-slate-600 font-mono text-center mt-2">RecoveryX Pro • v1.0</p>
+        </div>
+      </aside>
+
+      {/* Main column (mobile headers + content) */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 relative z-10">
+      {/* Dynamic Header Based on Tab — mobile / tablet only */}
       {activeTab === "DASHBOARD" ? (
-        <div className="sticky top-0 z-20 border-b border-white/5 bg-slate-950/45 px-4 py-4 backdrop-blur-md relative z-10">
-          <div className="mx-auto flex max-w-lg items-center justify-between">
+        <div className="lg:hidden sticky top-0 z-20 border-b border-white/5 bg-slate-950/45 px-4 py-4 backdrop-blur-md relative">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-display text-base font-extrabold tracking-[0.15em] text-white uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">
@@ -749,8 +809,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           </div>
         </div>
       ) : (
-        <div className="sticky top-0 z-20 border-b border-white/5 bg-slate-950/45 px-4 py-4 backdrop-blur-md relative z-10">
-          <div className="mx-auto flex max-w-4xl items-center justify-between">
+        <div className="lg:hidden sticky top-0 z-20 border-b border-white/5 bg-slate-950/45 px-4 py-4 backdrop-blur-md relative">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setActiveTab("DASHBOARD")}
@@ -773,13 +833,54 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           </div>
         </div>
       )}
- 
-      <div className="mx-auto w-full max-w-4xl px-3 py-4 relative z-10 grow overflow-y-auto min-h-0">
+
+      {/* Desktop topbar — visible on lg+ */}
+      <div className="hidden lg:flex shrink-0 items-center justify-between gap-4 border-b border-white/5 bg-slate-950/45 px-8 py-4 backdrop-blur-md relative z-20">
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-extrabold tracking-tight text-white truncate">
+            {activeTab === "DASHBOARD" ? "Command Dashboard" :
+             activeTab === "SEARCH" ? "Global Search Terminal" :
+             activeTab === "USERS" ? "Identity Access Management" :
+             activeTab === "IMPORT" ? "Data Ingestion Engine" :
+             activeTab === "PERMS" ? "Access Control & Masking" :
+             "System Audit Trails"}
+          </h2>
+          <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">
+            {activeTab === "DASHBOARD" ? "Overview of operators, assets and console actions" :
+             activeTab === "SEARCH" ? "Verify and track assets over encrypted channels" :
+             activeTab === "USERS" ? "Provision operator identities and endpoints" :
+             activeTab === "IMPORT" ? "Import ledger files into the search cluster" :
+             activeTab === "PERMS" ? "Field visibility constraints per clearance tier" :
+             "Real-time lookup records and tracking events"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {activeTab === "USERS" && (
+            <button onClick={loadUsers} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] px-4 py-2 text-xs font-bold text-slate-200 transition-all cursor-pointer">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          )}
+          {activeTab === "LOGS" && (
+            <button onClick={() => setActiveTab("DASHBOARD")} className="rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] px-4 py-2 text-xs font-bold text-slate-200 transition-all cursor-pointer">
+              Back to Dashboard
+            </button>
+          )}
+          <span className="hidden xl:inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[11px] font-bold text-emerald-300 font-mono">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            </span>
+            SYSTEM ONLINE
+          </span>
+        </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10 grow overflow-y-auto min-h-0">
         {/* DASHBOARD TAB VIEW */}
         {activeTab === "DASHBOARD" && (
-          <div className="max-w-lg mx-auto space-y-5">
-            {/* Stats Row */}
-            <div className="grid grid-cols-2 gap-4">
+          <div className="w-full max-w-7xl mx-auto space-y-5 lg:space-y-6">
+            {/* Stats Row — 2 cols on mobile, 3 cols on desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 blur-2xl rounded-full" />
                 <div className="flex items-start justify-between">
@@ -806,23 +907,23 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   <p className="text-[10px] text-slate-500 mt-0.5">Verified active operator nodes</p>
                 </div>
               </div>
-            </div>
-            
-            <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-purple-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
-              <div className="relative z-10 flex items-start justify-between">
-                <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/25">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8M8 11h8M8 15h8m-10 4h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors col-span-2 lg:col-span-1">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-purple-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
+                <div className="relative z-10 flex items-start justify-between">
+                  <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/25">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h8M8 11h8M8 15h8m-10 4h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  </div>
+                  <p className="text-3xl lg:text-4xl font-extrabold text-white font-mono tracking-tight">{totalVehiclesCount}</p>
                 </div>
-                <p className="text-4xl font-extrabold text-white font-mono tracking-tight">{totalVehiclesCount}</p>
-              </div>
-              <div className="relative z-10 mt-4">
-                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Tracked Vehicles Index</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Synchronized secure ledger records</p>
+                <div className="relative z-10 mt-4">
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Tracked Vehicles Index</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Synchronized secure ledger records</p>
+                </div>
               </div>
             </div>
  
-            <div className="pt-2">
+            <div className="pt-2 lg:grid lg:grid-cols-5 lg:gap-6 lg:items-start">
+              <div className="lg:col-span-3">
               <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3 font-mono">Console Actions</p>
               <div className="space-y-3">
                 <button 
@@ -866,7 +967,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   </div>
                 </button>
  
-                <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="grid grid-cols-2 gap-3 pt-1 lg:grid-cols-1 xl:grid-cols-2">
                   <button onClick={() => setActiveTab("IMPORT")} className="flex flex-col items-center justify-center gap-3 bg-white/[0.015] border border-white/5 py-5 rounded-2xl text-slate-300 hover:text-white hover:border-white/10 transition-colors active:scale-[0.98] cursor-pointer">
                     <Upload className="w-5 h-5 text-indigo-400" />
                     <span className="text-xs font-bold font-mono">DATA IMPORT</span>
@@ -877,6 +978,30 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       <span className="text-xs font-bold font-mono">LOCK PERMS</span>
                     </button>
                   )}
+                </div>
+              </div>
+              </div>
+              <div className="lg:col-span-2 mt-5 lg:mt-0">
+                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-3 font-mono">Quick Tools</p>
+                <div className="rounded-2xl border border-white/5 bg-white/[0.015] p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-white">Shortcuts</p>
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Desktop</span>
+                  </div>
+                  <button onClick={() => setActiveTab("IMPORT")} className="w-full flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] hover:border-indigo-500/30 px-4 py-3 text-[13px] font-semibold text-slate-200 hover:text-white transition-all cursor-pointer">
+                    <span className="flex items-center gap-2.5"><Upload className="w-4 h-4 text-indigo-400" /> Data Import</span>
+                    <span className="text-slate-500">→</span>
+                  </button>
+                  {isAdmin && (
+                    <button onClick={() => setActiveTab("PERMS")} className="w-full flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] hover:border-indigo-500/30 px-4 py-3 text-[13px] font-semibold text-slate-200 hover:text-white transition-all cursor-pointer">
+                      <span className="flex items-center gap-2.5"><Shield className="w-4 h-4 text-indigo-400" /> Lock Permissions</span>
+                      <span className="text-slate-500">→</span>
+                    </button>
+                  )}
+                  <button onClick={() => setActiveTab("SEARCH")} className="w-full flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] hover:border-indigo-500/30 px-4 py-3 text-[13px] font-semibold text-slate-200 hover:text-white transition-all cursor-pointer">
+                    <span className="flex items-center gap-2.5"><Search className="w-4 h-4 text-indigo-400" /> Global Search</span>
+                    <span className="text-slate-500">→</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -968,7 +1093,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           
           {/* TAB 1: USER MANAGEMENT */}
           {activeTab === "USERS" && isAdmin && (
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="space-y-6 w-full max-w-7xl mx-auto">
               
               <div className="flex items-center justify-between pb-6 border-b border-white/5">
                 <div>
@@ -1030,7 +1155,6 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                           <option value="NORMAL_USER">Level 1: Field Operator</option>
                           <option value="OFFICE_STAFF">Level 2: HQ Staff</option>
                           {isSuperAdmin && <option value="ADMIN">Level 3: Supervisor</option>}
-                          {isSuperAdmin && <option value="SUPER_ADMIN">Level 4: System Overlord</option>}
                         </select>
                       </div>
                       <div className="space-y-1.5">
@@ -1152,7 +1276,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 <h3 className="text-sm font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
                                   <Shield className="w-4 h-4" /> Operations Command ({usersList.filter(u => ["ADMIN", "SUPER_ADMIN"].includes(u.role)).length})
                                 </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
                                   {usersList.filter(u => ["ADMIN", "SUPER_ADMIN"].includes(u.role)).map(u => renderUserRow(u))}
                                 </div>
                               </div>
@@ -1162,7 +1286,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                               <h3 className="text-sm font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
                                 <FileCheck className="w-4 h-4" /> Headquarter Staff ({usersList.filter(u => u.role === "OFFICE_STAFF").length})
                               </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
                                 {usersList.filter(u => u.role === "OFFICE_STAFF").length === 0 ? (
                                   <p className="p-4 bg-white/5 border border-white/5 rounded-xl text-sm text-slate-500 col-span-full">No HQ identities enlisted.</p>
                                 ) : (
@@ -1175,7 +1299,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                               <h3 className="text-sm font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
                                 <Smartphone className="w-4 h-4" /> Field Endpoints ({usersList.filter(u => u.role === "NORMAL_USER").length})
                               </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
                                 {usersList.filter(u => u.role === "NORMAL_USER").length === 0 ? (
                                   <p className="p-4 bg-white/5 border border-white/5 rounded-xl text-sm text-slate-500 col-span-full">No active field operatives mapped in your zone.</p>
                                 ) : (
@@ -1271,7 +1395,6 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                     <option value="NORMAL_USER">NORMAL_USER (Field Agent)</option>
                     <option value="OFFICE_STAFF">OFFICE_STAFF (Operator)</option>
                     {isSuperAdmin && <option value="ADMIN">ADMIN (Supervisor)</option>}
-                    {isSuperAdmin && <option value="SUPER_ADMIN">SUPER_ADMIN (System Admin)</option>}
                   </select>
                 </div>
 
@@ -1340,7 +1463,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
           {/* TAB 2: DATA IMPORT */}
           {activeTab === "IMPORT" && (
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="space-y-6 w-full max-w-7xl mx-auto">
               <div className="pb-6 border-b border-white/5">
                 <h2 className="text-xl font-bold tracking-tight text-white">Data Ingestion Engine</h2>
                 <p className="text-sm text-slate-500 mt-1">Import structured ledger files into the highly available search clustered database</p>
@@ -1424,7 +1547,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                     <span className="text-sm font-medium text-slate-400">Retrieving catalog fragments...</span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filesList.length > 0 ? (
                       filesList.map(item => (
                         <div key={item.id} className="relative group rounded-2xl border border-white/5 bg-[#1A1D24] p-5 transition-all hover:border-white/10 hover:shadow-xl hover:shadow-indigo-500/5 flex flex-col justify-between overflow-hidden">
@@ -1481,7 +1604,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
           {/* TAB 3: MASK-PERMISSIONS CONFIG PANEL */}
           {activeTab === "PERMS" && isAdmin && (
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="space-y-6 w-full max-w-7xl mx-auto">
               <div className="pb-6 border-b border-white/5">
                 <h2 className="text-xl font-bold tracking-tight text-white">Identity Access Control & Masking</h2>
                 <p className="text-sm text-slate-500 mt-1">Configure structural metadata visibility constraints per clearance tier</p>
@@ -1536,7 +1659,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {[
                         { field: "show_customer_name", desc: "Customer Name", icon: <UserIcon className="w-4 h-4" /> },
                         { field: "show_vehicle_number", desc: "Vehicle Number", icon: <Car className="w-4 h-4" /> },
@@ -1664,7 +1787,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             })();
 
             return (
-              <div className="space-y-6 max-w-4xl mx-auto">
+              <div className="space-y-6 w-full max-w-7xl mx-auto">
                 <div className="pb-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold tracking-tight text-white">System Audit Trails</h2>
@@ -1711,7 +1834,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       <span className="text-sm font-medium tracking-tight">Decoupling telemetry matrices...</span>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {filteredUserWiseList.length > 0 ? (
                         filteredUserWiseList.map((item) => {
                           const hasSearches = item.logsCount > 0;
@@ -1874,6 +1997,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
         </div>
         )}
+      </div>
       </div>
     </div>
   );

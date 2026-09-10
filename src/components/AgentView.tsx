@@ -42,8 +42,9 @@ type FilterType = "GENERAL" | "VEHICLE_LAST_4" | "ENGINE_LAST_4" | "CHASSIS_LAST
 
 export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewProps) {
   // Determine creator mobile of interest based on active user's roles
+  // Android super-admin (mobile === "admin", role ADMIN) ko bhi super mano — warna sirf apni 0 vehicles dikhengi
   const targetCreatorMobile = useMemo(() => {
-    if (user.role === "SUPER_ADMIN" || user.role === "OFFICE_STAFF") return undefined; // All vehicles for super admin and office staff
+    if (user.role === "SUPER_ADMIN" || user.role === "OFFICE_STAFF" || user.mobile === "admin") return undefined; // All vehicles for super admin and office staff
     if (user.role === "ADMIN") return user.mobile;     // Creator of own uploaded vehicles
     return user.creator_mobile || user.mobile;         // Creator for normal user
   }, [user]);
@@ -65,7 +66,7 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
 
   // Helper to fetch custom permissions based on role hierarchy
   const fetchActivePermissions = async (): Promise<FieldPermissions> => {
-    if (user.role === "SUPER_ADMIN" || user.role === "OFFICE_STAFF") {
+    if (user.role === "SUPER_ADMIN" || user.role === "OFFICE_STAFF" || user.mobile === "admin") {
       return {
         role_string: "unmasked_all",
         role: "ADMIN",
@@ -261,7 +262,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
       <div className="absolute bottom-[-15%] right-[-15%] w-[60%] h-[60%] bg-emerald-500/5 rounded-full blur-[130px] pointer-events-none z-0" />
 
       {/* Header Panel - Re-engineered for Elegant Liquid Glass Aesthetic */}
-      <div className="shrink-0 z-20 border-b border-white/5 bg-slate-950/45 shadow-2xl backdrop-blur-md p-2 sm:p-3 flex items-center justify-between gap-4">
+      <div className="shrink-0 z-20 border-b border-white/5 bg-slate-950/45 shadow-2xl backdrop-blur-md p-2 sm:p-3 lg:px-6 flex items-center justify-between gap-4">
         {/* Title / Identity block */}
         <div className="flex items-center gap-2.5">
           <div className="w-8.5 h-8.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] shrink-0">
@@ -315,7 +316,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
       </div>
 
       {/* Embedded Modern Workstation Command Bar - Redesigned as clean glassy rail */}
-      <div className="shrink-0 z-10 border-b border-white/5 bg-[#121625]/20 backdrop-blur-md px-2.5 py-2 sm:px-3 flex items-center gap-2">
+      <div className="shrink-0 z-10 border-b border-white/5 bg-[#121625]/20 backdrop-blur-md px-2.5 py-2 sm:px-3 lg:px-6 flex items-center gap-2">
         {/* Custom triggers for search targeting */}
         <div className="relative flex items-center bg-slate-950/80 border border-white/10 rounded-lg p-0.5 shrink-0">
           <select
@@ -367,9 +368,9 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
 
 
       {/* Main command layout search result view area */}
-      <div className="grow overflow-y-auto p-4 sm:p-6 bg-transparent z-10 animate-fade-in">
+      <div className="grow overflow-y-auto p-4 sm:p-6 lg:p-8 bg-transparent z-10 animate-fade-in">
         {!searchQuery ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4 max-w-sm mx-auto">
+          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4 w-full max-w-md lg:max-w-xl mx-auto">
             <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
               <div className="absolute inset-0 bg-indigo-500/5 rounded-3xl animate-ping" />
               <Search className="h-8 w-8 text-indigo-400" />
@@ -414,7 +415,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             </div>
           </div>
         ) : filteredVehicles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3 max-w-sm mx-auto font-sans">
+          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3 w-full max-w-md lg:max-w-xl mx-auto font-sans">
             <div className="p-4 rounded-3xl bg-rose-500/10 border border-rose-500/25 text-rose-400 shadow-xl shadow-rose-500/5">
               <AlertTriangle className="h-6 w-6" />
             </div>
@@ -426,7 +427,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 pb-8 auto-rows-max animate-fade-in" id="vehicles-search-grid">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-2 sm:gap-3 pb-8 auto-rows-max animate-fade-in" id="vehicles-search-grid">
             {filteredVehicles.map(v => (
               <motion.div
                 key={v.id}
@@ -475,7 +476,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl glass-container shadow-[0_32px_64px_-16px_rgba(0,0,0,0.85)]"
+              className="relative z-10 w-full max-w-2xl lg:max-w-4xl overflow-hidden rounded-2xl glass-container shadow-[0_32px_64px_-16px_rgba(0,0,0,0.85)]"
             >
               {/* Premium Top Multi-Million Dollar Styling Accents */}
               <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
