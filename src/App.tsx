@@ -155,6 +155,39 @@ export default function App() {
     window.location.reload(); // Force hard reload to wipe runtime variables in JS closure engine!
   };
 
+  // Auto-logout mid-session: recharge beech me expire ho to turant bahar.
+  // Har 5 min + tab wapas khulne pe re-check.
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    const recheck = async () => {
+      try {
+        const res = await checkUserSubscription(currentUser);
+        if (!res.ok && !cancelled) {
+          localStorage.removeItem("ACTIVE_USER_SESSION");
+          localStorage.removeItem(`VEHICLE_CACHE_${currentUser.creator_mobile}`);
+          localStorage.removeItem(`VEHICLE_CACHE_TIME_${currentUser.creator_mobile}`);
+          localStorage.removeItem("VEHICLE_CACHE_all_users");
+          localStorage.removeItem("VEHICLE_CACHE_TIME_all_users");
+          setCurrentUser(null);
+          setLoginError("Your subscription has expired. Please recharge to continue.");
+        }
+      } catch (e) {
+        console.error("Subscription recheck failed", e);
+      }
+    };
+    const id = window.setInterval(recheck, 5 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") recheck();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [currentUser]);
+
   // Custom configuration submission
   const handleSaveConfig = (e: React.FormEvent) => {
     e.preventDefault();
