@@ -33,11 +33,11 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Theme Management (Default is 'dark' Mode on first view)
+  // Theme Management (Default is 'light' Mode on first view)
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     const saved = localStorage.getItem("theme_preference");
     if (saved) return saved as 'light' | 'dark' | 'system';
-    return 'dark'; // Dark Mode as default first theme!
+    return 'light'; // Light Mode as default first theme!
   });
 
   // Settings Panel state

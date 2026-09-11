@@ -7,42 +7,42 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Base custom resets for enterprise premium UI with strict single viewport constraints */
+/* Base defaults mirror the light theme (default first view) to avoid a dark flash on load */
 :root {
-  color-scheme: dark;
-  --app-bg-color: #0b0f19;
-  --bg-gradient-1: rgba(6, 182, 212, 0.15);
-  --bg-gradient-2: rgba(99, 102, 241, 0.15);
-  --bg-gradient-3: rgba(16, 185, 129, 0.05);
-  --orb-color-1: rgba(6, 182, 212, 0.3);
-  --orb-color-2: rgba(79, 70, 229, 0.25);
+  color-scheme: light;
+  --app-bg-color: #FFFFFF;
+  --bg-gradient-1: rgba(99, 102, 241, 0.05);
+  --bg-gradient-2: rgba(99, 102, 241, 0.03);
+  --bg-gradient-3: rgba(16, 185, 129, 0.02);
+  --orb-color-1: rgba(99, 102, 241, 0.06);
+  --orb-color-2: rgba(168, 85, 247, 0.05);
   
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-blur: blur(20px) saturate(160%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-bg: #F4F5F7;
+  --glass-blur: none;
+  --glass-border: 1px solid #E8E8E6;
+  --glass-shadow: 0 4px 18px -4px rgba(22, 24, 29, 0.08), 0 2px 8px -2px rgba(22, 24, 29, 0.04);
   
-  --input-bg: rgba(0, 0, 0, 0.35);
-  --input-border: rgba(255, 255, 255, 0.1);
-  --input-color: #ffffff;
+  --input-bg: #FFFFFF;
+  --input-border: #E8E8E6;
+  --input-color: #16181D;
   
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
+  --text-primary: #16181D;
+  --text-secondary: #6B7280;
   
-  --secondary-btn-bg: rgba(255, 255, 255, 0.04);
-  --secondary-btn-border: rgba(255, 255, 255, 0.08);
-  --secondary-btn-text: #94a3b8;
-  --secondary-btn-hover-bg: rgba(255, 255, 255, 0.08);
-  --secondary-btn-hover-text: #ffffff;
+  --secondary-btn-bg: #FFFFFF;
+  --secondary-btn-border: #E8E8E6;
+  --secondary-btn-text: #6B7280;
+  --secondary-btn-hover-bg: #F7F7F5;
+  --secondary-btn-hover-text: #16181D;
   
-  --badge-bg: rgba(255, 255, 255, 0.03);
-  --badge-border: rgba(255, 255, 255, 0.06);
-  --badge-text: #94a3b8;
+  --badge-bg: #FFFFFF;
+  --badge-border: #E8E8E6;
+  --badge-text: #6B7280;
   
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --danger-border: rgba(239, 68, 68, 0.25);
-  --danger-text: #fca5a5;
-  --danger-hover-bg: rgba(239, 68, 68, 0.2);
+  --danger-bg: rgba(220, 38, 38, 0.06);
+  --danger-border: rgba(220, 38, 38, 0.22);
+  --danger-text: #991B1B;
+  --danger-hover-bg: rgba(220, 38, 38, 0.12);
 }
 
 html, body, #root {
