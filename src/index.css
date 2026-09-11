@@ -467,10 +467,18 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background-clip: text;
 }
 
+/* Light theme: harsh dark shadows become soft — sticky headers stop
+   looking like raised floating slabs, modals keep depth via scrim. */
+.light .shadow-2xl {
+  --tw-shadow: 0 10px 28px -12px rgba(22, 24, 29, 0.16);
+}
+.light .shadow-xl {
+  --tw-shadow: 0 8px 22px -10px rgba(22, 24, 29, 0.12);
+}
+
 /* Fix hardcoded dark surfaces for the light theme.
    NOTE: Tailwind class names with [ ] # / . must be escaped in selectors,
    otherwise the whole selector is invalid and silently dropped. */
-.light .bg-\[\#0A0D14\],
 .light .bg-\[\#07090e\],
 .light .bg-\[\#04060B\],
 .light .bg-\[\#06080F\],
@@ -482,6 +490,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .light .bg-\[\#1e222d\],
 .light .bg-\[\#11151F\],
 .light .bg-\[\#20242D\] {
+  background-color: #FFFFFF !important;
+}
+
+/* Inset tiles (icon wells, count pills, log rows): light gray so the
+   card > tile hierarchy survives on white. Inputs stay pure white. */
+.light .bg-\[\#0A0D14\] {
+  background-color: #F5F5F3 !important;
+}
+.light .bg-\[\#0A0D14\]\/50 {
+  background-color: #EDEDEA !important;
+}
+.light input.bg-\[\#0A0D14\],
+.light select.bg-\[\#0A0D14\],
+.light textarea.bg-\[\#0A0D14\] {
   background-color: #FFFFFF !important;
 }
 
@@ -508,7 +530,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 .light .hover\:bg-\[\#1e233d\]\/40:hover,
 .light .hover\:bg-\[\#2d1e25\]\/40:hover,
-.light .hover\:bg-\[\#1e2a3d\]\/40:hover {
+.light .hover\:bg-\[\#1e2a3d\]\/40:hover,
+.light .hover\:bg-\[\#20242D\]:hover {
   background-color: #F4F4F2 !important;
 }
 

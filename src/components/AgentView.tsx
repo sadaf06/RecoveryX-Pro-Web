@@ -25,11 +25,12 @@ import {
   Coins,
   Sparkles,
   Layers,
-  Activity,
   Smartphone,
   Database,
   Share2,
-  Printer
+  Printer,
+  LogOut,
+  ArrowLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -262,59 +263,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
       <div className="absolute top-[-15%] left-[-15%] w-[60%] h-[60%] bg-indigo-500/10 rounded-full blur-[130px] pointer-events-none z-0" />
       <div className="absolute bottom-[-15%] right-[-15%] w-[60%] h-[60%] bg-emerald-500/5 rounded-full blur-[130px] pointer-events-none z-0" />
 
-      {/* Header Panel - Re-engineered for Elegant Liquid Glass Aesthetic */}
-      <div className="shrink-0 z-20 border-b border-white/5 bg-slate-950/45 shadow-2xl backdrop-blur-md p-2 sm:p-3 lg:px-6 flex items-center justify-between gap-4">
-        {/* Title / Identity block */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8.5 h-8.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.15)] shrink-0">
-            <Activity className="w-4 h-4" />
-          </div>
-          <div className="hidden xs:block">
-            <div className="flex items-center gap-2">
-              <h1 className="font-display text-[11px] sm:text-xs font-extrabold tracking-[0.15em] uppercase brand-gradient-text">
-                RecoveryX Pro
-              </h1>
-              <span className="glass-badge-blue px-2 py-0.5 rounded-full text-[8px] font-bold tracking-wider uppercase shrink-0">
-                {user.role.replace('_', ' ')}
-              </span>
-            </div>
-            <p className="text-[9px] text-slate-500 uppercase tracking-widest font-semibold mt-0.5">
-              <span className="hidden sm:inline">Secure Terminal • </span><span className="text-slate-400 font-mono">{user.name}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Global registry live status and workstation controller actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden md:flex items-center gap-2 bg-slate-950/60 border border-white/5 rounded-lg px-2.5 py-1 backdrop-blur-sm">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-[10px] font-bold text-slate-400 tracking-wider">
-              INDEX: <strong className="text-emerald-400 font-mono">{cachedVehicles.length.toLocaleString()}</strong>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleSyncData}
-              disabled={syncing}
-              className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 px-2.5 min-h-[44px] text-[10px] font-bold font-sans transition-all active:scale-95 focus:outline-none cursor-pointer"
-            >
-              <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin text-amber-400' : ''}`} />
-              <span className="hidden sm:inline">Sync Registry</span>
-              <span className="sm:hidden">Sync</span>
-            </button>
-            <button
-              onClick={onLogout}
-              className="rounded-lg bg-white/5 border border-white/5 hover:bg-rose-500/10 hover:border-rose-500/25 px-2.5 min-h-[44px] text-[10px] font-bold text-slate-300 hover:text-rose-400 transition-all active:scale-95 cursor-pointer"
-            >
-              {isInsideAdmin ? "Return" : "Lockout"}
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* Header panel removed to save vertical space — sync/logout live in the search rail below as icon buttons */}
 
       {/* Embedded Modern Workstation Command Bar - Redesigned as clean glassy rail */}
       <div className="shrink-0 z-10 border-b border-white/5 bg-[#121625]/20 backdrop-blur-md px-2.5 py-2 sm:px-3 lg:px-6 flex items-center gap-2">
@@ -368,6 +317,25 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             </button>
           )}
         </div>
+
+        {/* Compact rail actions (replaces the old header panel) */}
+        <button
+          onClick={handleSyncData}
+          disabled={syncing}
+          aria-label="Sync registry"
+          title={lastSynced ? `Last synced at ${lastSynced}` : "Sync registry"}
+          className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+        >
+          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin text-amber-400' : ''}`} />
+        </button>
+        <button
+          onClick={onLogout}
+          aria-label={isInsideAdmin ? "Back to dashboard" : "Logout"}
+          title={isInsideAdmin ? "Back to dashboard" : "Logout"}
+          className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg bg-white/5 border border-white/5 hover:bg-rose-500/10 hover:border-rose-500/25 text-slate-300 hover:text-rose-400 transition-all active:scale-95 cursor-pointer"
+        >
+          {isInsideAdmin ? <ArrowLeft className="h-4 w-4" /> : <LogOut className="h-4 w-4" />}
+        </button>
       </div>
 
 
@@ -380,6 +348,9 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
               <Search className="h-8 w-8 text-indigo-400" />
             </div>
             <div className="space-y-1">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
+                {user.role.replace('_', ' ')} • Index {cachedVehicles.length.toLocaleString()}{lastSynced ? ` • Synced ${lastSynced}` : ""}
+              </p>
               <h3 className="text-base font-bold tracking-tight text-white font-display">Ready for Query Lookup</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
                 Type above to trigger instant offline searches from secure cached index database files.
