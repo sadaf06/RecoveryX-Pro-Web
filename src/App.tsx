@@ -240,7 +240,18 @@ export default function App() {
       {/* Real vs Mock banner helper - Redesigned as a premium glassy metadata anchor with Theme selector */}
       <div className="bg-slate-950/40 border border-white/5 rounded-xl py-1.5 px-3 sm:px-4 text-[10.5px] font-mono flex items-center justify-between gap-3 backdrop-blur-md z-30 shrink-0 flex-wrap w-full max-w-[1440px] mx-auto">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {isRealFirebase ? (
+          {currentUser ? (
+            <>
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-slate-400 font-sans font-medium">Username:</span>
+              <span className="rounded-md glass-badge-green px-2 py-0.5 text-[8.5px] font-bold tracking-wider font-mono">
+                {currentUser.name}
+              </span>
+            </>
+          ) : isRealFirebase ? (
             <>
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

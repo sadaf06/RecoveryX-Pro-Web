@@ -63,11 +63,16 @@ export function isKotaRegionVehicle(v: Vehicle): boolean {
   return KOTA_AREA_KEYWORDS.some(k => hay.includes(k));
 }
 
-function sortKotaFirst(list: Vehicle[]): Vehicle[] {
+function sortKotaFirst(list: Vehicle[], fileTimes: Record<string, number> = {}): Vehicle[] {
+  const timeKey = (v: Vehicle) => `${v.creator_mobile || ""}__${v.file_name || ""}`;
   return [...list].sort((a, b) => {
     const pa = isKotaRegionVehicle(a) ? 0 : 1;
     const pb = isKotaRegionVehicle(b) ? 0 : 1;
     if (pa !== pb) return pa - pb;
+    // Latest uploaded file first — new POS/bucket surfaces on top, zero extra reads
+    const ta = fileTimes[timeKey(a)] || 0;
+    const tb = fileTimes[timeKey(b)] || 0;
+    if (ta !== tb) return tb - ta;
     return (a.registration_number || "").localeCompare(b.registration_number || "");
   });
 }
@@ -151,6 +156,8 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   // Live server total for the caption (cheap aggregation)
   const [serverTotal, setServerTotal] = useState<number | null>(null);
+  // file_name -> uploaded_at (one small fetch, reused for latest-first ranking)
+  const [fileTimes, setFileTimes] = useState<Record<string, number>>({});
 
   // Helper to fetch custom permissions based on role hierarchy
   const fetchActivePermissions = async (): Promise<FieldPermissions> => {
@@ -190,6 +197,17 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
     }
   };
 
+  const refreshFileTimes = async () => {
+    try {
+      const files = await FirebaseService.getUploadedFiles(targetCreatorMobile);
+      const map: Record<string, number> = {};
+      files.forEach(f => { map[`${f.admin_mobile}__${f.file_name}`] = f.uploaded_at; });
+      setFileTimes(map);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSyncData = async () => {
     setSyncing(true);
     try {
@@ -199,6 +217,7 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
       const perms = await fetchActivePermissions();
       setPermissions(perms);
       await refreshServerTotal();
+      await refreshFileTimes();
       const syncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastSynced(syncTime);
       localStorage.setItem(`VEHICLE_CACHE_TIME_${targetCacheKey}`, syncTime);
@@ -261,6 +280,7 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
     loadRecentSearches();
 
     refreshServerTotal();
+    refreshFileTimes();
 
     const localCacheStr = localStorage.getItem(`VEHICLE_CACHE_${targetCacheKey}`);
     const localTimeStr = localStorage.getItem(`VEHICLE_CACHE_TIME_${targetCacheKey}`);
@@ -290,10 +310,10 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
     };
   }, []);
 
-  // Server-side search (debounced): only matching docs download.
+  // Server-side search (debounced, min 3 chars): only matching docs download.
   // Offline falls back to the local cache via filteredVehicles below.
   useEffect(() => {
-    if (!searchQuery.trim() || !isOnline) {
+    if (searchQuery.trim().length < 3 || !isOnline) {
       setServerResults([]);
       setSearching(false);
       return;
@@ -318,14 +338,14 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
   }, [searchQuery, searchFilter, isOnline, targetCreatorMobile]);
 
   const filteredVehicles = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    // Online: server results are the source of truth (quota-safe)
-    if (isOnline) {
-      return sortKotaFirst(dedupeVehicles(serverResults));
-    }
-    // Offline: same matching rules over the local cache
-    return sortKotaFirst(dedupeVehicles(filterLocalVehicles(cachedVehicles, searchQuery, searchFilter)));
-  }, [cachedVehicles, serverResults, searchQuery, searchFilter, isOnline]);
+    if (searchQuery.trim().length < 3) return [];
+    // Instant offline matches first, server hits merge in as they arrive
+    const combined = [
+      ...filterLocalVehicles(cachedVehicles, searchQuery, searchFilter),
+      ...serverResults,
+    ];
+    return sortKotaFirst(dedupeVehicles(combined), fileTimes);
+  }, [cachedVehicles, serverResults, searchQuery, searchFilter, fileTimes]);
 
   const selectedMatches = useMemo(() => {
     if (!selectedVehicle) return [];
@@ -333,6 +353,23 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
     const pool = [...serverResults, ...cachedVehicles];
     return pool.filter(v => (v.registration_number || "").toUpperCase().trim() === regNo);
   }, [selectedVehicle, cachedVehicles, serverResults]);
+
+  // Same file repeated across records -> show once, latest file first
+  const selectedUniqueFiles = useMemo(() => {
+    const seen = new Set<string>();
+    const timeKey = (fileName: string, creator: string) => `${creator || ""}__${fileName}`;
+    const unique = selectedMatches.filter(m => {
+      const f = (m.file_name || "Unknown File").trim() || "Unknown File";
+      if (seen.has(f)) return false;
+      seen.add(f);
+      return true;
+    });
+    return [...unique].sort((a, b) => {
+      const ta = fileTimes[timeKey(a.file_name || "", a.creator_mobile || "")] || 0;
+      const tb = fileTimes[timeKey(b.file_name || "", b.creator_mobile || "")] || 0;
+      return tb - ta;
+    });
+  }, [selectedMatches, fileTimes]);
 
   const handleSelectCard = async (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -497,20 +534,14 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
 
       {/* Main command layout search result view area */}
       <div className="grow overflow-y-auto p-4 sm:p-6 lg:p-8 bg-transparent z-10 animate-fade-in">
-        {!searchQuery ? (
+        {searchQuery.trim().length < 3 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4 w-full max-w-md lg:max-w-xl mx-auto">
             <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
               <div className="absolute inset-0 bg-indigo-500/5 rounded-3xl animate-ping" />
               <Search className="h-8 w-8 text-indigo-400" />
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
-                {user.name} • {user.role.replace('_', ' ')}{serverTotal !== null ? ` • Total ${serverTotal.toLocaleString()}` : ""} • Cached {cachedVehicles.length.toLocaleString()}{lastSynced ? ` • Synced ${lastSynced}` : ""}
-              </p>
               <h3 className="text-base font-bold tracking-tight text-white font-display">Ready for Query Lookup</h3>
-              <p className="text-xs text-slate-400 leading-relaxed font-semibold">
-                Type above to trigger instant offline searches from secure cached index database files.
-              </p>
             </div>
             {/* Recent searches — tap to re-run */}
             {recentSearches.length > 0 && (
@@ -715,9 +746,9 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                     {renderField("show_file_name", selectedVehicle.file_name) && selectedVehicle.file_name && (
                       <div className="bg-white/[0.02] border border-white/5 p-3 rounded-lg flex flex-col gap-2 sm:col-span-2">
                         <span className="text-[10px] uppercase tracking-wider text-indigo-400 font-bold block mb-1">Source Ledger File(s)</span>
-                        {selectedMatches.length > 1 ? (
+                        {selectedUniqueFiles.length > 1 ? (
                           <div className="space-y-1.5 font-mono text-xs max-h-32 overflow-y-auto pr-1">
-                            {selectedMatches.map((m, idx) => (
+                            {selectedUniqueFiles.map((m, idx) => (
                               <button
                                 key={m.id || idx}
                                 onClick={() => setSelectedVehicle(m)}

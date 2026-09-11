@@ -625,7 +625,11 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           record_count: mappedVehicles.length
         };
 
-        await FirebaseService.importVehiclesBatch(mappedVehicles, fileUploadDescriptor);
+        await FirebaseService.importVehiclesBatch(mappedVehicles, fileUploadDescriptor, (done, total) => {
+          // Upload phase spans 50% -> 100% across 500-record batches
+          setImportProgress(50 + Math.round((done / total) * 50));
+          setParsingMsg(`Uploading batch ${done} of ${total} (${mappedVehicles.length} records)...`);
+        });
         
         setImportProgress(100);
         setStepIdx(3);

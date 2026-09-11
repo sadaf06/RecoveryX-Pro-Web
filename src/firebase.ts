@@ -566,7 +566,11 @@ export const FirebaseService = {
     return await FirebaseService.syncData(creatorMobile);
   },
 
-  importVehiclesBatch: async (vehicles: Vehicle[], uploadedFile: UploadedFile): Promise<void> => {
+  importVehiclesBatch: async (
+    vehicles: Vehicle[],
+    uploadedFile: UploadedFile,
+    onProgress?: (doneChunks: number, totalChunks: number) => void
+  ): Promise<void> => {
     if (isRealFirebase && dbInstance) {
       // 1. Save File Upload Metadata
       const fileId = `${uploadedFile.admin_mobile}_${uploadedFile.file_name}`;
@@ -594,6 +598,7 @@ export const FirebaseService = {
         } catch (e) {
           handleFirestoreError(e, OperationType.WRITE, 'vehicles-batch');
         }
+        onProgress?.(chunks.indexOf(chunk) + 1, chunks.length);
       }
     } else {
       // 1. Files Mock
@@ -870,8 +875,7 @@ export const FirebaseService = {
   ): Promise<Vehicle[]> => {
     if (!isRealFirebase || !dbInstance) return [];
     const normQ = normReg(searchQuery);
-    if (!normQ) return [];
-    if (filter === "GENERAL" && normQ.length < 2) return [];
+    if (normQ.length < 3) return [];
     const revQ = [...normQ].reverse().join("");
     const fieldMap: Record<string, [string, string][]> = {
       VEHICLE_LAST_4: [["reg_rev", revQ]],
