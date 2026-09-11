@@ -107,11 +107,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     isOpen: boolean;
     title: string;
     message: string;
+    confirmText: string;
     onConfirm: () => void;
-  }>({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+  }>({ isOpen: false, title: "", message: "", confirmText: "Confirm", onConfirm: () => {} });
 
-  const confirmAction = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmDialog({ isOpen: true, title, message, onConfirm });
+  const confirmAction = (title: string, message: string, onConfirm: () => void, confirmText = "Confirm") => {
+    setConfirmDialog({ isOpen: true, title, message, confirmText, onConfirm });
   };
 
   // -------------------------------------------------------------
@@ -199,11 +200,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           setErrorMsg("Failed to block subscription.");
           console.error(e);
         }
-      }
+      },
+      "Block"
     );
   };
 
-  const subscriptionBadge = (u: User) => {    if (isExemptUser(u)) {
+  const subscriptionBadge = (u: User) => {
+    if (isExemptUser(u)) {
       return (
         <span className="bg-white/5 border border-white/10 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
           Exempt
@@ -471,12 +474,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       async () => {
         try {
           await FirebaseService.deleteUser(targetMobile);
-          setSuccessMsg("Account successfully discarded.");
-          loadUsers();
+          setSuccessMsg("Account successfully discarded.");          loadUsers();
         } catch (e) {
           setErrorMsg("Failed to delete account from system.");
         }
-      }
+      },
+      "Delete Account"
     );
   };
 
@@ -711,7 +714,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         } finally {
           setFilesLoading(false);
         }
-      }
+      },
+      "Delete File"
     );
   };
 
@@ -870,7 +874,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         } catch (e) {
           console.error(e);
         }
-      }
+      },
+      "Purge Logs"
     );
   };
 
@@ -886,7 +891,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         } catch (e) {
           console.error(e);
         }
-      }
+      },
+      "Delete Trace"
     );
   };
 
@@ -1387,7 +1393,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                     }}
                     className="flex-1 py-2 text-xs font-bold rounded-lg cursor-pointer glass-btn-danger"
                   >
-                    Delete Account
+                    {confirmDialog.confirmText}
                   </button>
                 </div>
               </motion.div>
@@ -2348,7 +2354,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                           confirmAction(
                                             "Purge Node Traces",
                                             "Purge all telemetry traces for this specific node? This cannot be undone.",
-                                            () => handleClearLogs(item.user.mobile)
+                                            () => handleClearLogs(item.user.mobile),
+                                            "Purge"
                                           );
                                         }}
                                         className="text-[10px] font-bold text-rose-400 border border-rose-500/10 hover:border-rose-500/30 px-2 py-1 rounded bg-rose-500/5 hover:bg-rose-500/10 transition-all animate-pulse"
