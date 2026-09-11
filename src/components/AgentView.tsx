@@ -147,6 +147,8 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
   const [serverResults, setServerResults] = useState<Vehicle[]>([]);
   const [searching, setSearching] = useState(false);
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  // Live server total for the caption (cheap aggregation)
+  const [serverTotal, setServerTotal] = useState<number | null>(null);
 
   // Helper to fetch custom permissions based on role hierarchy
   const fetchActivePermissions = async (): Promise<FieldPermissions> => {
@@ -177,6 +179,15 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
   // Handle Action: region sync (Kota-region subset download + merge) plus
   // permissions refresh. Quota-safe vs full download; per-search server
   // queries cover anything outside the region.
+  const refreshServerTotal = async () => {
+    try {
+      const n = await FirebaseService.countVehicles(targetCreatorMobile);
+      if (n !== null) setServerTotal(n);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSyncData = async () => {
     setSyncing(true);
     try {
@@ -185,6 +196,7 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
 
       const perms = await fetchActivePermissions();
       setPermissions(perms);
+      await refreshServerTotal();
       const syncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastSynced(syncTime);
       localStorage.setItem(`VEHICLE_CACHE_TIME_${targetCacheKey}`, syncTime);
@@ -225,6 +237,8 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
       }
     };
     loadPermissions();
+
+    refreshServerTotal();
 
     const localCacheStr = localStorage.getItem(`VEHICLE_CACHE_${targetCacheKey}`);
     const localTimeStr = localStorage.getItem(`VEHICLE_CACHE_TIME_${targetCacheKey}`);
@@ -464,7 +478,7 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-mono uppercase tracking-widest text-slate-500">
-                {user.role.replace('_', ' ')} • Index {cachedVehicles.length.toLocaleString()}{lastSynced ? ` • Synced ${lastSynced}` : ""}
+                {user.name} • {user.role.replace('_', ' ')}{serverTotal !== null ? ` • Total ${serverTotal.toLocaleString()}` : ""} • Cached {cachedVehicles.length.toLocaleString()}{lastSynced ? ` • Synced ${lastSynced}` : ""}
               </p>
               <h3 className="text-base font-bold tracking-tight text-white font-display">Ready for Query Lookup</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-semibold">
