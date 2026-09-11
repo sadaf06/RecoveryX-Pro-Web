@@ -64,17 +64,17 @@ body {
 /* Explicit or preferred Light mode override */
 .light, html.light, :root.light {
   color-scheme: light;
-  --app-bg-color: #F7F7F5;
-  --bg-gradient-1: rgba(99, 102, 241, 0.04);
-  --bg-gradient-2: rgba(99, 102, 241, 0.02);
-  --bg-gradient-3: rgba(16, 185, 129, 0.01);
-  --orb-color-1: rgba(99, 102, 241, 0.03);
-  --orb-color-2: rgba(168, 85, 247, 0.02);
+  --app-bg-color: #FFFFFF;
+  --bg-gradient-1: rgba(99, 102, 241, 0.05);
+  --bg-gradient-2: rgba(99, 102, 241, 0.03);
+  --bg-gradient-3: rgba(16, 185, 129, 0.02);
+  --orb-color-1: rgba(99, 102, 241, 0.06);
+  --orb-color-2: rgba(168, 85, 247, 0.05);
   
-  --glass-bg: #FFFFFF;
+  --glass-bg: #F4F5F7;
   --glass-blur: none;
   --glass-border: 1px solid #E8E8E6;
-  --glass-shadow: 0 4px 20px -2px rgba(22, 24, 29, 0.04), 0 2px 8px -1px rgba(22, 24, 29, 0.02);
+  --glass-shadow: 0 4px 18px -4px rgba(22, 24, 29, 0.08), 0 2px 8px -2px rgba(22, 24, 29, 0.04);
   
   --input-bg: #FFFFFF;
   --input-border: #E8E8E6;
@@ -89,7 +89,7 @@ body {
   --secondary-btn-hover-bg: #F7F7F5;
   --secondary-btn-hover-text: #16181D;
   
-  --badge-bg: #F7F7F5;
+  --badge-bg: #FFFFFF;
   --badge-border: #E8E8E6;
   --badge-text: #6B7280;
   
@@ -490,16 +490,16 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .light .bg-\[\#1e222d\],
 .light .bg-\[\#11151F\],
 .light .bg-\[\#20242D\] {
-  background-color: #FFFFFF !important;
+  background-color: #F4F5F7 !important;
 }
 
-/* Inset tiles (icon wells, count pills, log rows): light gray so the
-   card > tile hierarchy survives on white. Inputs stay pure white. */
+/* Inset tiles (icon wells, count pills, log rows): pure white so they pop
+   on the gray cards. Inputs stay white too. */
 .light .bg-\[\#0A0D14\] {
-  background-color: #F5F5F3 !important;
+  background-color: #FFFFFF !important;
 }
 .light .bg-\[\#0A0D14\]\/50 {
-  background-color: #EDEDEA !important;
+  background-color: #FFFFFF !important;
 }
 .light input.bg-\[\#0A0D14\],
 .light select.bg-\[\#0A0D14\],
@@ -507,13 +507,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background-color: #FFFFFF !important;
 }
 
-/* Translucent dark header/sidebar/rail surfaces become frosted white */
+/* Translucent dark header/sidebar/rail surfaces become near-invisible frost
+   on the white page (border + blur carry the separation) */
 .light .bg-slate-950\/40,
 .light .bg-slate-950\/45,
 .light .bg-slate-950\/60,
 .light .bg-slate-950\/80,
 .light .bg-\[\#121625\]\/20 {
-  background-color: rgba(255, 255, 255, 0.82) !important;
+  background-color: rgba(255, 255, 255, 0.72) !important;
 }
 
 /* Modal scrims stay dim so dialogs keep focus (soft dark in light mode) */
@@ -522,17 +523,42 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background-color: rgba(22, 24, 29, 0.5) !important;
 }
 
-/* Dark-tinted action cards become white cards */
+/* Dark-tinted action cards become gray cards */
 .light .bg-\[\#1e233d\]\/30,
 .light .bg-\[\#2d1e25\]\/30,
 .light .bg-\[\#1e2a3d\]\/30 {
-  background-color: #FFFFFF !important;
+  background-color: #F4F5F7 !important;
 }
 .light .hover\:bg-\[\#1e233d\]\/40:hover,
 .light .hover\:bg-\[\#2d1e25\]\/40:hover,
 .light .hover\:bg-\[\#1e2a3d\]\/40:hover,
 .light .hover\:bg-\[\#20242D\]:hover {
-  background-color: #F4F4F2 !important;
+  background-color: #ECEEF1 !important;
+}
+
+/* Light theme: stat/action cards become light-gray surfaces with soft depth */
+.light .bg-white\/\[0\.015\] {
+  background-color: #F4F5F7 !important;
+  box-shadow: 0 4px 16px -6px rgba(22, 24, 29, 0.10) !important;
+}
+/* Icon tiles get stronger tint so they pop on white */
+.light .bg-indigo-500\/10 {
+  background-color: rgba(99, 102, 241, 0.14) !important;
+}
+.light .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+.light .bg-purple-500\/10 {
+  background-color: rgba(168, 85, 247, 0.14) !important;
+}
+.light .bg-amber-500\/10 {
+  background-color: rgba(217, 119, 6, 0.14) !important;
+}
+.light .bg-rose-500\/10 {
+  background-color: rgba(225, 29, 72, 0.10) !important;
+}
+.light .bg-sky-500\/10 {
+  background-color: rgba(2, 132, 199, 0.12) !important;
 }
 
 /* Dark hairline fills become light hairlines */

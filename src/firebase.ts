@@ -917,6 +917,28 @@ export function subscriptionDaysLeft(sub: Subscription): number {
   return Math.ceil((sub.expires_at - Date.now()) / 86400000);
 }
 
+// Precise countdown: "2 days 4 hours left" / "6 hours left" / "Expired"
+export function formatTimeLeft(sub: Subscription): string {
+  const ms = sub.expires_at - Date.now();
+  if (ms <= 0) return "Expired";
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  const dLabel = days === 1 ? "day" : "days";
+  const hLabel = hours === 1 ? "hour" : "hours";
+  if (days <= 0) return `${hours} ${hLabel} left`;
+  return `${days} ${dLabel} ${hours} ${hLabel} left`;
+}
+
+// Compact for badges: "2d 4h left" / "6h left" / "Expired"
+export function formatTimeLeftShort(sub: Subscription): string {
+  const ms = sub.expires_at - Date.now();
+  if (ms <= 0) return "Expired";
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  if (days <= 0) return `${hours}h left`;
+  return `${days}d ${hours}h left`;
+}
+
 // UI state shared by badges/banners — mirrors the login gate exactly.
 export type SubscriptionState = "active" | "expiring" | "blocked" | "none";
 

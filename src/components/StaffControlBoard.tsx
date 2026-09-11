@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { User, Vehicle, UploadedFile, FieldPermissions, SearchHistory, Subscription, UserRole, UserStatus } from "../types";
-import { FirebaseService, subscriptionDaysLeft, getSubscriptionState, isExemptUser } from "../firebase";
+import { FirebaseService, subscriptionDaysLeft, formatTimeLeft, formatTimeLeftShort, getSubscriptionState, isExemptUser } from "../firebase";
 import AgentView from "./AgentView";
 import * as XLSX from "xlsx";
 import { 
@@ -226,14 +226,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         </span>
       );
     }
-    const days = sub ? subscriptionDaysLeft(sub) : 0;
     return (
       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider border ${
         state === "expiring"
           ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
           : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
       }`}>
-        {`${days}d left`}
+        {sub ? formatTimeLeftShort(sub) : "No recharge"}
       </span>
     );
   };
@@ -488,6 +487,14 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [parsingMsg, setParsingMsg] = useState("");
+  // Staged file waits for explicit Upload press instead of auto-uploading
+  const [stagedFile, setStagedFile] = useState<File | null>(null);
+  const [activeFileName, setActiveFileName] = useState("");
+  const [stepIdx, setStepIdx] = useState(0);
+  // admin mobile -> name, so super admin sees who uploaded which file
+  const [uploaderNames, setUploaderNames] = useState<Record<string, string>>({});
+
+  const IMPORT_STEPS = ["Reading workbook", "Mapping rows", "Uploading to Firestore"];
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -499,25 +506,39 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     }
   };
 
+  const stageFile = (file: File | undefined) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    if (!file) {
+      setErrorMsg("No file detected. Drop a .xlsx, .xls or .csv file.");
+      return;
+    }
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+      setErrorMsg(`Unsupported file "${file.name}". Only .xlsx, .xls, .csv allowed.`);
+      return;
+    }
+    setStagedFile(file);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
+    stageFile(e.dataTransfer.files?.[0]);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
+    stageFile(e.target.files?.[0]);
+    e.target.value = ""; // allow re-picking the same file
   };
 
   const processFile = async (file: File) => {
     setErrorMsg("");
     setSuccessMsg("");
     setImporting(true);
+    setStagedFile(null);
+    setActiveFileName(file.name);
+    setStepIdx(0);
     setParsingMsg("Reading spreadsheet workbook...");
     setImportProgress(10);
 
@@ -529,6 +550,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
+        setStepIdx(1);
         setParsingMsg("Mapping sheet lines to Firestore columns...");
         setImportProgress(30);
 
@@ -598,6 +620,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           return;
         }
 
+        setStepIdx(2);
         setParsingMsg(`Uploading ${mappedVehicles.length} items in secure batches of 500 to Firestore...`);
         setImportProgress(50);
 
@@ -613,6 +636,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         await FirebaseService.importVehiclesBatch(mappedVehicles, fileUploadDescriptor);
         
         setImportProgress(100);
+        setStepIdx(3);
         setSuccessMsg(`File block '${file.name}' imported with parity! Successfully verified and matched ${mappedVehicles.length} records.`);
         loadFiles();
       } catch (err) {
@@ -644,6 +668,18 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       console.error(e);
     } finally {
       setFilesLoading(false);
+    }
+  };
+
+  // Super admin: resolve uploader name per file
+  const loadUploaderNames = async () => {
+    try {
+      const all = await FirebaseService.getUsers();
+      const map: Record<string, string> = {};
+      all.forEach(u => { map[u.mobile] = u.name; });
+      setUploaderNames(map);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -890,6 +926,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         break;
       case "IMPORT":
         loadFiles();
+        if (isSuperAdmin) loadUploaderNames();
         break;
       case "PERMS":
         loadPermissions();
@@ -1064,7 +1101,6 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             {/* Recharge status for plain admins */}
             {isAdmin && !isSuperAdmin && ownSub && (() => {
               const state = getSubscriptionState(ownSub);
-              const days = subscriptionDaysLeft(ownSub);
               const blocked = state === "blocked";
               const expiring = state === "expiring";
               return (
@@ -1080,7 +1116,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   <p className="text-sm font-bold text-white">
                     Subscription: {blocked
                       ? "Blocked — contact super admin for recharge"
-                      : `${days} days left`}
+                      : formatTimeLeft(ownSub)}
                   </p>
                   <p className="text-[11px] text-slate-500 font-mono">
                     Valid till {new Date(ownSub.expires_at).toLocaleDateString()} • Plan {ownSub.plan_name}
@@ -1795,13 +1831,16 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
               {importing ? (
                 // Ingest state tracker loop
-                <div className="rounded-2xl border border-white/5 bg-[#1A1D24] p-12 text-center space-y-6 shadow-2xl relative overflow-hidden">
+                <div className="rounded-2xl border border-white/5 bg-[#1A1D24] p-8 sm:p-12 text-center space-y-6 shadow-2xl relative overflow-hidden">
                   <div className="absolute inset-0 bg-indigo-500/5 pulse-animation" />
                   <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400">
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
                   <div className="relative space-y-3 max-w-sm mx-auto">
                     <p className="text-base font-bold text-white tracking-tight">{parsingMsg}</p>
+                    {activeFileName && (
+                      <p className="text-xs font-mono text-indigo-400 truncate" title={activeFileName}>{activeFileName}</p>
+                    )}
                     <div className="w-full bg-[#0A0D14] rounded-full h-2 overflow-hidden border border-white/5">
                       <div 
                         className="bg-indigo-500 h-full transition-all duration-300 relative"
@@ -1811,6 +1850,20 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       </div>
                     </div>
                     <span className="font-bold text-[11px] uppercase tracking-widest text-slate-500">{importProgress}% Processing</span>
+                    <div className="pt-2 space-y-2 text-left">
+                      {IMPORT_STEPS.map((s, i) => (
+                        <div key={s} className="flex items-center gap-2.5 text-xs font-semibold">
+                          {i < stepIdx ? (
+                            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-400" />
+                          ) : i === stepIdx ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-indigo-400" />
+                          ) : (
+                            <span className="h-4 w-4 shrink-0 rounded-full border border-white/15" />
+                          )}
+                          <span className={i <= stepIdx ? "text-slate-200" : "text-slate-500"}>{s}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1850,6 +1903,36 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   <p className="mt-4 text-xs text-slate-500 font-medium max-w-md bg-white/5 border border-white/5 p-3 rounded-lg">
                     Automatically validates and maps headers: Bank Name, Registration, Owner, Model, EMI, Chassis, Engine, Confirmer.
                   </p>
+                </div>
+              )}
+
+              {/* Staged file: explicit Upload press */}
+              {!importing && stagedFile && (
+                <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0A0D14] border border-white/10">
+                      <FileSpreadsheet className="h-5 w-5 text-indigo-400" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate" title={stagedFile.name}>{stagedFile.name}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">Ready to upload • {(stagedFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setStagedFile(null)}
+                      className="rounded-xl px-4 min-h-[44px] text-xs font-bold text-slate-300 hover:text-white glass-btn-secondary cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                    <button
+                      onClick={() => processFile(stagedFile)}
+                      className="flex items-center gap-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 px-6 min-h-[44px] text-sm font-bold text-white transition-all shadow-lg shadow-indigo-500/20 active:scale-95 cursor-pointer"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1896,6 +1979,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                               <p className="font-sans text-sm font-bold text-white tracking-tight line-clamp-1" title={item.file_name}>
                                 {item.file_name}
                               </p>
+                              {isSuperAdmin && (
+                                <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1.5">
+                                  <UserIcon className="w-3 h-3 shrink-0 text-indigo-400" />
+                                  <span className="truncate">{uploaderNames[item.admin_mobile] || "Unknown admin"}</span>
+                                  <span className="font-mono shrink-0">• {item.admin_mobile}</span>
+                                </p>
+                              )}
                               <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
                                 <Clock className="w-3 h-3" />
                                 {new Date(item.uploaded_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
