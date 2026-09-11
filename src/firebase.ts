@@ -875,7 +875,34 @@ export const FirebaseService = {
 };
 
 // -------------------------------------------------------------
-// 5. SUBSCRIPTION GATE (recharge khatm -> login band)
+// 6. DEVICE BIND (web parity with Android: one browser per agent)
+// -------------------------------------------------------------
+export function getWebDeviceId(): string {
+  let id = null;
+  try {
+    id = localStorage.getItem("WEB_DEVICE_ID");
+  } catch (e) {}
+  if (!id) {
+    id = `WEB_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`.toUpperCase();
+    try {
+      localStorage.setItem("WEB_DEVICE_ID", id);
+    } catch (e) {}
+  }
+  return id;
+}
+
+// Admins bypass the device lock (same as Android)
+export function isDeviceLockExempt(user: DBUser): boolean {
+  return user.role === "ADMIN" || user.role === "SUPER_ADMIN" || user.mobile === "admin";
+}
+
+// Empty or legacy mock IDs bind fresh on next login (one-time migration)
+export function needsDeviceBind(user: DBUser): boolean {
+  const id = user.registered_device_id || "";
+  return id === "" || id.startsWith("WEB_AGENT_CHROME_MOCK_");
+}
+// -------------------------------------------------------------
+// 5. SUBSCRIPTION GATE (recharge khtm -> login band)
 // -------------------------------------------------------------
 // Super admin (role SUPER_ADMIN or mobile "admin") is always exempt,
 // otherwise nobody could renew once everything expires.

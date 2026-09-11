@@ -42,6 +42,35 @@ interface AgentViewProps {
 
 type FilterType = "GENERAL" | "VEHICLE_LAST_4" | "ENGINE_LAST_4" | "CHASSIS_LAST_4" | "LOAN_STARTS";
 
+// Kota region priority: RTO codes RJ-08 Bundi, RJ-17 Jhalawar, RJ-20 Kota,
+// RJ-28 Baran, RJ-33 Ramganjmandi + nearby tehsils/towns matched in POS.
+const KOTA_RTO_PREFIXES = ["RJ08", "RJ17", "RJ20", "RJ28", "RJ33"];
+const KOTA_AREA_KEYWORDS = [
+  "kota", "ladpura", "digod", "pipalda", "sangod", "ramganj", "kanwas",
+  "itawa", "kaithoon", "kaithun", "sultanpur", "mandana", "chechat",
+  "khairabad", "keshoraipatan", "bundi", "lakheri", "indergarh", "nainwa",
+  "hindoli", "kapren", "talera", "baran", "kishanganj", "shahbad",
+  "chhabra", "chhipabarod", "atru", "mangrol", "anta", "siswali", "khanpur",
+  "jhalawar", "jhalrapatan", "aklera", "pirawa", "bhawani", "dag",
+  "gangdhar", "bakani", "suket", "manohar"
+];
+
+export function isKotaRegionVehicle(v: Vehicle): boolean {
+  const reg = (v.registration_number || "").toUpperCase().replace(/[\s-]+/g, "");
+  if (KOTA_RTO_PREFIXES.some(p => reg.startsWith(p))) return true;
+  const hay = `${v.pos || ""} ${v.bank_name || ""}`.toLowerCase();
+  return KOTA_AREA_KEYWORDS.some(k => hay.includes(k));
+}
+
+function sortKotaFirst(list: Vehicle[]): Vehicle[] {
+  return [...list].sort((a, b) => {
+    const pa = isKotaRegionVehicle(a) ? 0 : 1;
+    const pb = isKotaRegionVehicle(b) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return (a.registration_number || "").localeCompare(b.registration_number || "");
+  });
+}
+
 export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewProps) {
   // Determine creator mobile of interest based on active user's roles
   // Android super-admin (mobile === "admin", role ADMIN) ko bhi super mano — warna sirf apni 0 vehicles dikhengi
@@ -186,7 +215,8 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
       }
     });
 
-    return Array.from(dedupedMap.values());
+    // Kota region vehicles first, then registration A-Z
+    return sortKotaFirst(Array.from(dedupedMap.values()));
   }, [cachedVehicles, searchQuery, searchFilter]);
 
   const selectedMatches = useMemo(() => {
@@ -296,6 +326,9 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
           </span>
           <input
             type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            enterKeyHint="search"
             value={searchQuery}
             aria-label="Search vehicles"
             onChange={(e) => setSearchQuery(e.target.value)}

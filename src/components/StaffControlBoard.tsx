@@ -336,19 +336,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     }
   };
 
-  const handleBindDevice = async (targetUser: User) => {
-    setErrorMsg("");
-    setSuccessMsg("");
-    const mockDeviceID = `WEB_AGENT_CHROME_MOCK_${Math.floor(100 + Math.random() * 900)}`;
-    try {
-      await FirebaseService.updateUser(targetUser.mobile, { registered_device_id: mockDeviceID });
-      setSuccessMsg(`Successfully bound device ID '${mockDeviceID}' to user ${targetUser.name}.`);
-      loadUsers();
-    } catch (e) {
-      setErrorMsg("Failed to bind device.");
-    }
-  };
-
+  // Manual mock binding removed: binding happens automatically on the
+  // agent's next web login. Admin can only unbind (clear) from here.
   const handleDebindDevice = async (targetUser: User) => {
     setErrorMsg("");
     setSuccessMsg("");
@@ -1573,13 +1562,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                     Unbind
                                   </button>
                                 ) : (
-                                  <button
-                                    onClick={() => handleBindDevice(u)}
-                                    className="flex items-center gap-1 rounded-md bg-indigo-500/10 border-indigo-500/20 hover:bg-indigo-500/20 text-[10px] sm:text-xs font-bold px-2 min-h-[44px] text-indigo-400 transition-colors flex-1 justify-center"
+                                  <span
+                                    title="Binds automatically on next web login"
+                                    className="flex items-center gap-1 rounded-md bg-white/5 border border-white/5 text-[10px] sm:text-xs font-bold px-2 min-h-[44px] text-slate-500 transition-colors flex-1 justify-center"
                                   >
                                     <Smartphone className="h-3 w-3" />
-                                    Bind
-                                  </button>
+                                    Auto-bind
+                                  </span>
                                 )}
 
                                 <button
@@ -1786,13 +1775,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                         Clear ID
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditUserDevice(`WEB_AGENT_CHROME_MOCK_${Math.floor(100 + Math.random() * 900)}`)}
-                        className="text-[9px] text-teal-400 underline uppercase hover:text-teal-300 font-bold"
-                      >
-                        Set Mock ID
-                      </button>
+                      <span className="text-[9px] text-slate-500 uppercase font-bold">
+                        Auto-binds on next login
+                      </span>
                     )}
                   </div>
                   <input

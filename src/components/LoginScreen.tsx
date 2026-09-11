@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { User } from "../types";
-import { FirebaseService, checkUserSubscription } from "../firebase";
+import { FirebaseService, checkUserSubscription, getWebDeviceId, isDeviceLockExempt, needsDeviceBind } from "../firebase";
 import { Shield, Smartphone, Key, RefreshCw, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -72,13 +72,32 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
         return;
       }
 
+      // Device bind gate: one browser per agent (admins exempt, like Android)
+      const webDeviceId = getWebDeviceId();
+      if (!isDeviceLockExempt(matched) && !needsDeviceBind(matched) && matched.registered_device_id !== webDeviceId) {
+        setError("This account is registered on another device. Please ask Admin to unbind your device.");
+        setLoading(false);
+        return;
+      }
+
       // Check if OTP verification is forced for first time
       if (matched.is_first_time) {
         setPendingUser(matched);
         setGeneratedOtp(Math.floor(1000 + Math.random() * 9000).toString());
         setError("");
       } else {
-        onLoginSuccess(matched);
+        // Auto-bind browser on login when unbound (or legacy mock ID)
+        if (!isDeviceLockExempt(matched) && needsDeviceBind(matched)) {
+          try {
+            await FirebaseService.updateUser(matched.mobile, { registered_device_id: webDeviceId });
+            onLoginSuccess({ ...matched, registered_device_id: webDeviceId });
+          } catch (e) {
+            console.error("Device bind failed", e);
+            onLoginSuccess(matched);
+          }
+        } else {
+          onLoginSuccess(matched);
+        }
       }
     } catch (err: any) {
       setError("An error occurred during authentication. Please retry.");
@@ -105,10 +124,12 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
 
     try {
       if (pendingUser) {
-        // Update user in Firestore/Local DB
-        await FirebaseService.updateUser(pendingUser.mobile, {
-          is_first_time: false
-        });
+        // Update user in Firestore/Local DB + bind this browser
+        const updates: Partial<User> = { is_first_time: false };
+        if (!isDeviceLockExempt(pendingUser)) {
+          updates.registered_device_id = getWebDeviceId();
+        }
+        await FirebaseService.updateUser(pendingUser.mobile, updates);
 
         setSuccessMsg("Device verified successfully! Signing you in...");
         
@@ -116,7 +137,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
         setTimeout(() => {
           onLoginSuccess({
             ...pendingUser,
-            is_first_time: false
+            ...updates,
           });
         }, 1200);
       }
