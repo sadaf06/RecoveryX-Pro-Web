@@ -142,6 +142,8 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
   const [searchFilter, setSearchFilter] = useState<FilterType>("VEHICLE_LAST_4");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  // Recent searches by this user (tap to re-run)
+  const [recentSearches, setRecentSearches] = useState<SearchHistory[]>([]);
 
   // Server-side search state (quota-safe: only matches download)
   const [serverResults, setServerResults] = useState<Vehicle[]>([]);
@@ -238,6 +240,26 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
     };
     loadPermissions();
 
+    const loadRecentSearches = async () => {
+      try {
+        const logs = await FirebaseService.getSearchHistories(user.creator_mobile || user.mobile);
+        const seen = new Set<string>();
+        const unique: SearchHistory[] = [];
+        for (const l of logs) {
+          if (l.user_mobile !== user.mobile) continue;
+          const key = (l.vehicle_number || "").toUpperCase().trim();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          unique.push(l);
+          if (unique.length >= 8) break;
+        }
+        setRecentSearches(unique);
+      } catch (e) {
+        console.error("Failed to load recent searches", e);
+      }
+    };
+    loadRecentSearches();
+
     refreshServerTotal();
 
     const localCacheStr = localStorage.getItem(`VEHICLE_CACHE_${targetCacheKey}`);
@@ -324,6 +346,11 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
         creator_mobile: user.creator_mobile || user.mobile
       };
       await FirebaseService.addSearchHistory(historyLog);
+      // Prepend locally so Recent shows instantly
+      setRecentSearches(prev => {
+        const key = (vehicle.registration_number || "").toUpperCase().trim();
+        return [{ ...historyLog }, ...prev.filter(h => (h.vehicle_number || "").toUpperCase().trim() !== key)].slice(0, 8);
+      });
     } catch (e) {
       console.error("Failed to construct audit trail", e);
     }
@@ -485,6 +512,23 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                 Type above to trigger instant offline searches from secure cached index database files.
               </p>
             </div>
+            {/* Recent searches — tap to re-run */}
+            {recentSearches.length > 0 && (
+              <div className="w-full glass-card rounded-2xl p-4 text-left">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-sans mb-2.5">Recent Searches</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {recentSearches.map((h, i) => (
+                    <button
+                      key={`${h.vehicle_number}-${i}`}
+                      onClick={() => setSearchQuery(h.vehicle_number)}
+                      className="font-mono text-[11px] font-bold px-3 min-h-[40px] rounded-lg bg-white/5 border border-white/10 text-slate-200 hover:border-indigo-500/40 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {h.vehicle_number}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Detailed performance stats block */}
             <div className="w-full glass-card rounded-2xl p-4 space-y-3.5 text-left shadow-lg">
               <div className="flex items-center gap-3">
