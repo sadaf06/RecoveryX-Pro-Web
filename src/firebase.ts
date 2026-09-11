@@ -25,6 +25,10 @@ import {
   getDocFromServer,
   getDocsFromServer,
   getCountFromServer,
+  orderBy,
+  startAt,
+  endAt,
+  limit,
   Firestore
 } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
@@ -408,6 +412,26 @@ function saveLocalCollection<T>(key: string, data: T[]) {
   localStorage.setItem(`MOCK_FIRESTORE_${key}`, JSON.stringify(data));
 }
 
+// Normalized search fields for server-side prefix search (quota-safe for
+// 40K+ datasets). Stored on every uploaded vehicle; old docs without these
+// fields simply won't match server queries until re-imported.
+function normReg(value: string): string {
+  return (value || "").toUpperCase().replace(/[\s-]+/g, "");
+}
+
+function vehicleSearchFields(v: Vehicle): Record<string, string> {
+  return {
+    reg_norm: normReg(v.registration_number),
+    reg_rev: [...normReg(v.registration_number)].reverse().join(""),
+    engine_norm: normReg(v.engine_number),
+    engine_rev: [...normReg(v.engine_number)].reverse().join(""),
+    chassis_norm: normReg(v.chassis_number),
+    chassis_rev: [...normReg(v.chassis_number)].reverse().join(""),
+    loan_norm: normReg(v.loan_no),
+    owner_norm: (v.owner || "").toUpperCase().trim(),
+  };
+}
+
 // -------------------------------------------------------------
 // 4. UNIFIED CONTEXT SERVICE API
 // -------------------------------------------------------------
@@ -563,7 +587,7 @@ export const FirebaseService = {
         const batch = writeBatch(dbInstance);
         for (const item of chunk) {
           const newDocRef = doc(collection(dbInstance, 'vehicles'));
-          batch.set(newDocRef, item);
+          batch.set(newDocRef, { ...item, ...vehicleSearchFields(item) });
         }
         try {
           await batch.commit();
@@ -835,6 +859,91 @@ export const FirebaseService = {
         saveLocalCollection("search_histories", []);
       }
     }
+  },
+
+  // Server-side prefix search: only matching docs download (max ~50 per
+  // field). No composite index needed. Creator scoping applied in memory.
+  searchVehiclesServer: async (
+    searchQuery: string,
+    filter: string,
+    creatorMobile?: string
+  ): Promise<Vehicle[]> => {
+    if (!isRealFirebase || !dbInstance) return [];
+    const normQ = normReg(searchQuery);
+    if (!normQ) return [];
+    if (filter === "GENERAL" && normQ.length < 2) return [];
+    const revQ = [...normQ].reverse().join("");
+    const fieldMap: Record<string, [string, string][]> = {
+      VEHICLE_LAST_4: [["reg_rev", revQ]],
+      ENGINE_LAST_4: [["engine_rev", revQ]],
+      CHASSIS_LAST_4: [["chassis_rev", revQ]],
+      LOAN_STARTS: [["loan_norm", normQ]],
+      GENERAL: [
+        ["reg_norm", normQ],
+        ["owner_norm", searchQuery.toUpperCase().trim()],
+        ["loan_norm", normQ],
+        ["engine_rev", revQ],
+        ["chassis_rev", revQ],
+      ],
+    };
+    const fields = fieldMap[filter] || fieldMap["GENERAL"];
+    const merged: Vehicle[] = [];
+    for (const [field, prefix] of fields) {
+      if (!prefix) continue;
+      try {
+        const q = query(
+          collection(dbInstance, "vehicles"),
+          orderBy(field),
+          startAt(prefix),
+          endAt(prefix + "\uf8ff"),
+          limit(50)
+        );
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => merged.push({ id: d.id, ...(d.data() as any) } as Vehicle));
+      } catch (e) {
+        console.error("Server search failed for", field, e);
+      }
+    }
+    const seen = new Set<string>();
+    const out: Vehicle[] = [];
+    for (const v of merged) {
+      const key = v.id || v.registration_number;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!creatorMobile || v.creator_mobile === creatorMobile) out.push(v);
+    }
+    return out.slice(0, 100);
+  },
+
+  // Region sync: downloads ONLY Kota-region vehicles (RTO RJ-08/17/20/26/28/33
+  // by reg_norm prefix). Bounded subset — quota-safe vs full download.
+  // Creator scoping applied in memory. Old docs without reg_norm are skipped.
+  syncRegionVehicles: async (creatorMobile?: string): Promise<Vehicle[]> => {
+    if (!isRealFirebase || !dbInstance) return [];
+    const prefixes = ["RJ08", "RJ17", "RJ20", "RJ26", "RJ28", "RJ33"];
+    const merged: Vehicle[] = [];
+    const seen = new Set<string>();
+    for (const p of prefixes) {
+      try {
+        const q = query(
+          collection(dbInstance, "vehicles"),
+          orderBy("reg_norm"),
+          startAt(p),
+          endAt(p + "~"),
+          limit(2000)
+        );
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => {
+          if (seen.has(d.id)) return;
+          seen.add(d.id);
+          const v = { id: d.id, ...(d.data() as any) } as Vehicle;
+          if (!creatorMobile || v.creator_mobile === creatorMobile) merged.push(v);
+        });
+      } catch (e) {
+        console.error("Region sync failed for", p, e);
+      }
+    }
+    return merged;
   },
 
   // Live total count via aggregation (cheap: ~1 read per 1000 docs).

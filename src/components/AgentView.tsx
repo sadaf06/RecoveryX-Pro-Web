@@ -43,8 +43,8 @@ interface AgentViewProps {
 type FilterType = "GENERAL" | "VEHICLE_LAST_4" | "ENGINE_LAST_4" | "CHASSIS_LAST_4" | "LOAN_STARTS";
 
 // Kota region priority: RTO codes RJ-08 Bundi, RJ-17 Jhalawar, RJ-20 Kota,
-// RJ-28 Baran, RJ-33 Ramganjmandi + nearby tehsils/towns matched in POS.
-const KOTA_RTO_PREFIXES = ["RJ08", "RJ17", "RJ20", "RJ28", "RJ33"];
+// RJ-26 Tonk, RJ-28 Baran, RJ-33 Ramganjmandi + nearby tehsils/towns.
+const KOTA_RTO_PREFIXES = ["RJ08", "RJ17", "RJ20", "RJ26", "RJ28", "RJ33"];
 const KOTA_AREA_KEYWORDS = [
   "kota", "ladpura", "digod", "pipalda", "sangod", "ramganj", "kanwas",
   "itawa", "kaithoon", "kaithun", "sultanpur", "mandana", "chechat",
@@ -52,7 +52,8 @@ const KOTA_AREA_KEYWORDS = [
   "hindoli", "kapren", "talera", "baran", "kishanganj", "shahbad",
   "chhabra", "chhipabarod", "atru", "mangrol", "anta", "siswali", "khanpur",
   "jhalawar", "jhalrapatan", "aklera", "pirawa", "bhawani", "dag",
-  "gangdhar", "bakani", "suket", "manohar"
+  "gangdhar", "bakani", "suket", "manohar", "tonk", "malpura",
+  "todaraisingh", "deoli", "uniara", "niwai"
 ];
 
 export function isKotaRegionVehicle(v: Vehicle): boolean {
@@ -69,6 +70,53 @@ function sortKotaFirst(list: Vehicle[]): Vehicle[] {
     if (pa !== pb) return pa - pb;
     return (a.registration_number || "").localeCompare(b.registration_number || "");
   });
+}
+
+// Offline fallback: same matching rules as before, over the local cache
+function filterLocalVehicles(vehicles: Vehicle[], searchQuery: string, searchFilter: FilterType): Vehicle[] {
+  const normQuery = searchQuery.trim().toLowerCase();
+  return vehicles.filter(v => {
+    switch (searchFilter) {
+      case "GENERAL":
+        return (
+          (v.registration_number || "").toLowerCase().includes(normQuery) ||
+          (v.owner || "").toLowerCase().includes(normQuery) ||
+          (v.bank_name || "").toLowerCase().includes(normQuery) ||
+          (v.model || "").toLowerCase().includes(normQuery) ||
+          (v.pos || "").toLowerCase().includes(normQuery) ||
+          (v.loan_no || "").toLowerCase().includes(normQuery) ||
+          (v.engine_number || "").toLowerCase().includes(normQuery) ||
+          (v.chassis_number || "").toLowerCase().includes(normQuery)
+        );
+      case "VEHICLE_LAST_4": {
+        const cleanReg = (v.registration_number || "").replace(/\s+/g, "");
+        return cleanReg.toLowerCase().includes(normQuery.replace(/\s+/g, ""));
+      }
+      case "ENGINE_LAST_4": {
+        const cleanEng = (v.engine_number || "").replace(/\s+/g, "");
+        return cleanEng.toLowerCase().includes(normQuery.replace(/\s+/g, ""));
+      }
+      case "CHASSIS_LAST_4": {
+        const cleanChas = (v.chassis_number || "").replace(/\s+/g, "");
+        return cleanChas.toLowerCase().includes(normQuery.replace(/\s+/g, ""));
+      }
+      case "LOAN_STARTS":
+        return (v.loan_no || "").toLowerCase().includes(normQuery.replace(/\s+/g, ""));
+      default:
+        return false;
+    }
+  });
+}
+
+function dedupeVehicles(list: Vehicle[]): Vehicle[] {
+  const dedupedMap = new Map<string, Vehicle>();
+  list.forEach(v => {
+    const regNo = (v.registration_number || "").toUpperCase().trim();
+    if (!dedupedMap.has(regNo)) {
+      dedupedMap.set(regNo, v);
+    }
+  });
+  return Array.from(dedupedMap.values());
 }
 
 export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewProps) {
@@ -94,6 +142,11 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
   const [searchFilter, setSearchFilter] = useState<FilterType>("VEHICLE_LAST_4");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+
+  // Server-side search state (quota-safe: only matches download)
+  const [serverResults, setServerResults] = useState<Vehicle[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
 
   // Helper to fetch custom permissions based on role hierarchy
   const fetchActivePermissions = async (): Promise<FieldPermissions> => {
@@ -121,19 +174,20 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
     return await FirebaseService.getFieldPermissions(user.creator_mobile || "admin", "NORMAL_USER");
   };
 
-  // Handle Action
+  // Handle Action: region sync (Kota-region subset download + merge) plus
+  // permissions refresh. Quota-safe vs full download; per-search server
+  // queries cover anything outside the region.
   const handleSyncData = async () => {
     setSyncing(true);
     try {
-      const vehicles = await FirebaseService.syncData(targetCreatorMobile);
-      setCachedVehicles(vehicles);
-      localStorage.setItem(`VEHICLE_CACHE_${targetCacheKey}`, JSON.stringify(vehicles));
-      const syncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setLastSynced(syncTime);
-      localStorage.setItem(`VEHICLE_CACHE_TIME_${targetCacheKey}`, syncTime);
+      const regionVehicles = await FirebaseService.syncRegionVehicles(targetCreatorMobile);
+      mergeIntoCache(regionVehicles);
 
       const perms = await fetchActivePermissions();
       setPermissions(perms);
+      const syncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastSynced(syncTime);
+      localStorage.setItem(`VEHICLE_CACHE_TIME_${targetCacheKey}`, syncTime);
     } catch (e) {
       console.error(e);
     } finally {
@@ -141,6 +195,24 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
         setSyncing(false);
       }, 300);
     }
+  };
+
+  // Merge server hits into the persistent cache (capped, quota-guarded)
+  // so offline search and dossier keep working on recent results.
+  const mergeIntoCache = (hits: Vehicle[]) => {
+    if (hits.length === 0) return;
+    setCachedVehicles(prev => {
+      const map = new Map<string, Vehicle>();
+      prev.forEach(v => map.set(v.id || v.registration_number, v));
+      hits.forEach(v => map.set(v.id || v.registration_number, v));
+      const merged = Array.from(map.values()).slice(-2000);
+      try {
+        localStorage.setItem(`VEHICLE_CACHE_${targetCacheKey}`, JSON.stringify(merged));
+      } catch (e) {
+        // localStorage quota (5MB) — keep memory-only cache
+      }
+      return merged;
+    });
   };
 
   useEffect(() => {
@@ -165,65 +237,66 @@ export default function AgentView({ user, onLogout, isInsideAdmin }: AgentViewPr
         console.error("Failed to parse local vehicles cache", e);
       }
     } else {
+      // No bulk download anymore — just refresh permissions/timestamp
       handleSyncData();
     }
   }, [targetCreatorMobile, targetCacheKey]);
 
+  // Track connectivity for server vs offline search
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Server-side search (debounced): only matching docs download.
+  // Offline falls back to the local cache via filteredVehicles below.
+  useEffect(() => {
+    if (!searchQuery.trim() || !isOnline) {
+      setServerResults([]);
+      setSearching(false);
+      return;
+    }
+    const q = searchQuery.trim();
+    const f = searchFilter;
+    const creator = targetCreatorMobile;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await FirebaseService.searchVehiclesServer(q, f, creator);
+        setServerResults(res);
+        mergeIntoCache(res);
+      } catch (e) {
+        console.error("Server search failed, using offline cache", e);
+        setServerResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery, searchFilter, isOnline, targetCreatorMobile]);
+
   const filteredVehicles = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    const normQuery = searchQuery.trim().toLowerCase();
-    
-    // First, filter all matching vehicles
-    const rawFiltered = cachedVehicles.filter(v => {
-      switch (searchFilter) {
-        case "GENERAL":
-          return (
-            (v.registration_number || "").toLowerCase().includes(normQuery) ||
-            (v.owner || "").toLowerCase().includes(normQuery) ||
-            (v.bank_name || "").toLowerCase().includes(normQuery) ||
-            (v.model || "").toLowerCase().includes(normQuery) ||
-            (v.pos || "").toLowerCase().includes(normQuery) ||
-            (v.loan_no || "").toLowerCase().includes(normQuery) ||
-            (v.engine_number || "").toLowerCase().includes(normQuery) ||
-            (v.chassis_number || "").toLowerCase().includes(normQuery)
-          );
-        case "VEHICLE_LAST_4": {
-          const cleanReg = (v.registration_number || "").replace(/\s+/g, "");
-          return cleanReg.toLowerCase().includes(normQuery.replace(/\s+/g, ""));
-        }
-        case "ENGINE_LAST_4": {
-          const cleanEng = (v.engine_number || "").replace(/\s+/g, "");
-          return cleanEng.toLowerCase().includes(normQuery.replace(/\s+/g, ""));
-        }
-        case "CHASSIS_LAST_4": {
-          const cleanChas = (v.chassis_number || "").replace(/\s+/g, "");
-          return cleanChas.toLowerCase().includes(normQuery.replace(/\s+/g, ""));
-        }
-        case "LOAN_STARTS":
-          return (v.loan_no || "").toLowerCase().includes(normQuery.replace(/\s+/g, ""));
-        default:
-          return false;
-      }
-    });
-
-    // Then, deduplicate by registration_number
-    const dedupedMap = new Map<string, Vehicle>();
-    rawFiltered.forEach(v => {
-      const regNo = (v.registration_number || "").toUpperCase().trim();
-      if (!dedupedMap.has(regNo)) {
-        dedupedMap.set(regNo, v);
-      }
-    });
-
-    // Kota region vehicles first, then registration A-Z
-    return sortKotaFirst(Array.from(dedupedMap.values()));
-  }, [cachedVehicles, searchQuery, searchFilter]);
+    // Online: server results are the source of truth (quota-safe)
+    if (isOnline) {
+      return sortKotaFirst(dedupeVehicles(serverResults));
+    }
+    // Offline: same matching rules over the local cache
+    return sortKotaFirst(dedupeVehicles(filterLocalVehicles(cachedVehicles, searchQuery, searchFilter)));
+  }, [cachedVehicles, serverResults, searchQuery, searchFilter, isOnline]);
 
   const selectedMatches = useMemo(() => {
     if (!selectedVehicle) return [];
     const regNo = (selectedVehicle.registration_number || "").toUpperCase().trim();
-    return cachedVehicles.filter(v => (v.registration_number || "").toUpperCase().trim() === regNo);
-  }, [selectedVehicle, cachedVehicles]);
+    const pool = [...serverResults, ...cachedVehicles];
+    return pool.filter(v => (v.registration_number || "").toUpperCase().trim() === regNo);
+  }, [selectedVehicle, cachedVehicles, serverResults]);
 
   const handleSelectCard = async (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -352,11 +425,20 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
         </div>
 
         {/* Compact rail actions (replaces the old header panel) */}
+        {!isOnline ? (
+          <span className="shrink-0 flex items-center px-2 min-h-[44px] rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-bold font-mono uppercase tracking-wider">
+            Offline
+          </span>
+        ) : searching ? (
+          <span className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+            <RefreshCw className="h-4 w-4 animate-spin text-indigo-400" />
+          </span>
+        ) : null}
         <button
           onClick={handleSyncData}
           disabled={syncing}
-          aria-label="Sync registry"
-          title={lastSynced ? `Last synced at ${lastSynced}` : "Sync registry"}
+          aria-label="Sync region data"
+          title={lastSynced ? `Region synced at ${lastSynced}` : "Sync Kota-region data"}
           className="shrink-0 flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 transition-all active:scale-95 cursor-pointer disabled:opacity-60"
         >
           <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin text-amber-400' : ''}`} />
