@@ -493,7 +493,12 @@ Chassis: ${isMasked("show_chassis_number") ? "LOCKED" : selectedVehicle.chassis_
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-sans">Subscribed Index</p>
-                  <p className="text-xs font-bold text-slate-200 mt-0.5">{cachedVehicles.length.toLocaleString()} Loaded Assets</p>
+                  <p className="text-xs font-bold text-slate-200 mt-0.5">
+                    {serverTotal !== null ? serverTotal.toLocaleString() : cachedVehicles.length.toLocaleString()} Total Cases
+                  </p>
+                  {serverTotal !== null && (
+                    <p className="text-[10px] font-mono text-slate-500 mt-0.5">{cachedVehicles.length.toLocaleString()} cached on device</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
