@@ -24,6 +24,7 @@ import {
   writeBatch,
   getDocFromServer,
   getDocsFromServer,
+  getCountFromServer,
   Firestore
 } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
@@ -833,6 +834,23 @@ export const FirebaseService = {
       } else {
         saveLocalCollection("search_histories", []);
       }
+    }
+  },
+
+  // Live total count via aggregation (cheap: ~1 read per 1000 docs).
+  // Returns null offline so callers can fall back to file-metadata sums.
+  countVehicles: async (creatorMobile?: string): Promise<number | null> => {
+    if (!isRealFirebase || !dbInstance) return null;
+    try {
+      const base: any = collection(dbInstance, "vehicles");
+      const q = creatorMobile
+        ? query(base, where("creator_mobile", "==", creatorMobile))
+        : base;
+      const snap = await getCountFromServer(q);
+      return snap.data().count;
+    } catch (e) {
+      console.warn("Live vehicle count failed, using fallback.", e);
+      return null;
     }
   },
 

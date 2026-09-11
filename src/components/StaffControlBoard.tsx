@@ -815,6 +815,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
   // DASHBOARD METRICS
   const [totalVehiclesCount, setTotalVehiclesCount] = useState(0);
+  const [totalVehiclesLive, setTotalVehiclesLive] = useState(false);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
   const [connectedUsersCount, setConnectedUsersCount] = useState(0);
 
@@ -828,10 +829,18 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       const uploaderMobile = isSuperAdmin 
         ? undefined 
         : (user.role === "ADMIN" ? user.mobile : (user.creator_mobile || user.mobile));
-      const files = await FirebaseService.getUploadedFiles(uploaderMobile);
-      let count = 0;
-      files.forEach(f => count += f.record_count);
-      setTotalVehiclesCount(count);
+      // Live server total first (cheap aggregation); file-sum fallback offline
+      const liveCount = await FirebaseService.countVehicles(uploaderMobile);
+      if (liveCount !== null) {
+        setTotalVehiclesCount(liveCount);
+        setTotalVehiclesLive(true);
+      } else {
+        const files = await FirebaseService.getUploadedFiles(uploaderMobile);
+        let count = 0;
+        files.forEach(f => count += f.record_count);
+        setTotalVehiclesCount(count);
+        setTotalVehiclesLive(false);
+      }
     } catch (e) {
       console.error("Metrics load failed", e);
     }
@@ -1158,7 +1167,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 </div>
                 <div className="relative z-10 mt-4">
                   <p className="text-xs font-bold text-slate-300 uppercase tracking-widest font-mono">Tracked Vehicles Index</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Synchronized secure ledger records</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{totalVehiclesLive ? "Live count from server" : "From uploaded file records"}</p>
                 </div>
               </div>
             </div>
