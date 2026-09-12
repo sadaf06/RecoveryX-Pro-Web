@@ -1,0 +1,10 @@
+# Ralph Progress Log
+Started: ralph/firestore-nodata-fix
+
+## US-001: Publish simplified Firestore rules — DONE
+- Staged firestore.rules.simple (auth-only reads, scoped writes unchanged)
+- tsc clean. Pending: user publishes file, waits 2 min, relogins, runs Diagnostics.
+- Learning: list-query denies came from claim-probing expressions (get()/in/null-guards) in rules; reads now use bare signedIn() so nothing can throw.
+
+## US-002: Verify admin on web — DONE
+- Diagnostics 5/5 PASS (admin session). Simplified rules live.

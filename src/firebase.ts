@@ -31,7 +31,7 @@ import {
   limit,
   Firestore
 } from "firebase/firestore";
-import { getAuth, Auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getAuth, Auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, updateProfile, signOut, onAuthStateChanged } from "firebase/auth";
 import { 
   User as DBUser, 
   Vehicle, 
@@ -1048,6 +1048,16 @@ export function syntheticEmail(mobile: string): string {
   return `${mobile.trim()}@recoveryx.app`;
 }
 
+// Token scope packed into Auth displayName: just the SCOPE string
+// (admin mobile, or ALL). Rules v3 compare it directly — no parsing,
+// no get() calls, nothing that can throw on stale tokens.
+export function authScopePack(role: string, mobile: string, creatorMobile: string): string {
+  const m = (mobile || "").trim();
+  if (role === "SUPER_ADMIN" || m === "admin") return "ALL";
+  if (role === "ADMIN") return m;
+  return (creatorMobile || "").trim() || m;
+}
+
 // Resolves once Firebase Auth finishes restoring its persisted session
 export function authReady(): Promise<void> {
   if (!authInstance) return Promise.resolve();
@@ -1081,37 +1091,19 @@ export async function authLogin(mobile: string, password: string): Promise<AuthL
   try {
     const cred = await signInWithEmailAndPassword(authInstance, syntheticEmail(cleanMobile), cleanPass);
     uid = cred.user.uid;
+    // Force a fresh ID token so just-packed name claims (backfill/role
+    // change) reach Firestore immediately — not after the hourly refresh.
+    try {
+      await cred.user.getIdToken(true);
+    } catch (e) {
+      console.warn("Token force-refresh failed, continuing with cached token.", e);
+    }
   } catch (e: any) {
     const code: string = e?.code || "";
     if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
-      // Pre-migration bootstrap: no Auth account yet — fall back to legacy
-      // mobile+password check (works only while rules still allow reads).
-      // Dies automatically once strict rules are published.
-      try {
-        const snap = await getDocs(collection(dbInstance!, "users"));
-        const found = snap.docs.map(d => ({ ...(d.data() as any), __docId: d.id }));
-        const match = found.find(u =>
-          ((u.mobile || "") as string).trim() === cleanMobile ||
-          ((u.mobile || "") as string).trim().toLowerCase() === cleanMobile.toLowerCase()
-        ) as any;
-        if (match && ((match.password || "") as string).trim() === cleanPass) {
-          return {
-            uid: "",
-            profile: {
-              name: match.name || cleanMobile,
-              mobile: match.mobile || cleanMobile,
-              password: match.password,
-              role: match.role || "NORMAL_USER",
-              status: match.status || "ACTIVE",
-              registered_device_id: match.registered_device_id || "",
-              is_first_time: !!match.is_first_time,
-              creator_mobile: match.creator_mobile || cleanMobile,
-            } as DBUser,
-          };
-        }
-      } catch (err) {
-        // Legacy lookup blocked (strict rules live) — fall through to error below
-      }
+      // No legacy fallback (removed post-cutover): without an Auth account
+      // there is no secure way to verify identity under strict rules.
+      // Unmigrated users must be re-created by super admin.
       throw new Error("Account not found. Please verify your mobile number.");
     }
     if (code === "auth/wrong-password") {
@@ -1151,11 +1143,14 @@ function secondaryAuth(): Auth {
   return getAuth(app);
 }
 
-export async function createAuthUser(mobile: string, password: string): Promise<string> {
+export async function createAuthUser(mobile: string, password: string, scopePack?: string): Promise<string> {
   const sAuth = secondaryAuth();
   try {
     const cred = await createUserWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
     const uid = cred.user.uid;
+    if (scopePack) {
+      try { await updateProfile(cred.user, { displayName: scopePack }); } catch (e) {}
+    }
     await signOut(sAuth);
     return uid;
   } catch (e: any) {
@@ -1169,17 +1164,31 @@ export async function createAuthUser(mobile: string, password: string): Promise<
 
 // Admin-side password reset: sign in as the user on the secondary instance
 // (using the current password on record), set the new one, sign out.
-export async function resetAuthPassword(mobile: string, oldPassword: string, newPassword: string): Promise<void> {
+export async function resetAuthPassword(mobile: string, oldPassword: string, newPassword: string, scopePack?: string): Promise<void> {
   const sAuth = secondaryAuth();
   try {
     const cred = await signInWithEmailAndPassword(sAuth, syntheticEmail(mobile), oldPassword);
     await updatePassword(cred.user, newPassword);
+    if (scopePack) {
+      try { await updateProfile(cred.user, { displayName: scopePack }); } catch (e) {}
+    }
   } catch (e: any) {
     const code: string = e?.code || "";
     if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
       throw new Error("Could not verify current password in Auth. Password not changed there.");
     }
     throw new Error(e?.message || "Auth password reset failed.");
+  } finally {
+    try { await signOut(sAuth); } catch (err) {}
+  }
+}
+
+// Set/refresh the token scope pack on an existing Auth account (backfill + role changes)
+export async function setAuthScope(mobile: string, password: string, scopePack: string): Promise<void> {
+  const sAuth = secondaryAuth();
+  try {
+    const cred = await signInWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
+    await updateProfile(cred.user, { displayName: scopePack });
   } finally {
     try { await signOut(sAuth); } catch (err) {}
   }
@@ -1219,6 +1228,49 @@ export interface MigrationResult {
   tempPassword?: string;
 }
 
+export interface BackfillResult {
+  mobile: string;
+  name: string;
+  status: "fixed" | "failed" | "skipped";
+  note: string;
+}
+
+// Backfill token scopes for ALREADY-migrated accounts (needs OPEN rules
+// briefly, since it lists users+passwords). Run BEFORE publishing rules v2.
+// Everyone must logout+login afterwards so tokens carry the name claim.
+export async function backfillTokenScopes(
+  onProgress?: (done: number, total: number) => void
+): Promise<BackfillResult[]> {
+  if (!isRealFirebase || !dbInstance) {
+    throw new Error("Needs real Firebase.");
+  }
+  const snap = await getDocs(collection(dbInstance, "users"));
+  const targets = snap.docs.filter(d => {
+    const data = d.data() as any;
+    return (data.uid || data.auth_uid) && data.mobile && data.password;
+  });
+  const results: BackfillResult[] = [];
+  let done = 0;
+  for (const d of targets) {
+    const data = d.data() as any;
+    const mobile: string = (data.mobile || "").trim();
+    const name: string = data.name || mobile;
+    try {
+      await setAuthScope(
+        mobile,
+        (data.password || "").trim(),
+        authScopePack(data.role || "NORMAL_USER", mobile, data.creator_mobile || mobile)
+      );
+      results.push({ mobile, name, status: "fixed", note: "Scope packed" });
+    } catch (e: any) {
+      results.push({ mobile, name, status: "failed", note: e?.message || "Failed" });
+    }
+    done++;
+    try { onProgress?.(done, targets.length); } catch (err) {}
+  }
+  return results;
+}
+
 // Post-cutover cleanup: delete legacy mobile-keyed docs (no uid field).
 // Run only after migration verified + strict rules published.
 export async function cleanupLegacyUserDocs(
@@ -1243,6 +1295,72 @@ export async function cleanupLegacyUserDocs(
     try { onProgress?.(done, snap.size); } catch (err) {}
   }
   return { deleted, kept };
+}
+
+export interface DiagResult {
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+// One-tap connection diagnostics: token claims + single-get + small list +
+// full list + indexed query. Pinpoints token vs rules failures exactly.
+export async function runDiagnostics(): Promise<DiagResult[]> {
+  const out: DiagResult[] = [];
+  if (!isRealFirebase || !dbInstance || !authInstance) {
+    out.push({ label: "Mode", ok: false, detail: "Demo/mock mode — diagnostics need real Firebase." });
+    return out;
+  }
+  const u = authInstance.currentUser;
+  if (!u) {
+    out.push({ label: "Auth session", ok: false, detail: "No Firebase user — logout + login first." });
+    return out;
+  }
+  try {
+    const tok = await u.getIdTokenResult(false);
+    const email = (tok.claims.email as string) || "";
+    const name = ((tok.claims as any).name as string) || "";
+    out.push({
+      label: "Token claims",
+      ok: !!(email && name),
+      detail: `email=${email || "?"} name=${name || "(missing — relogin needed)"}`,
+    });
+  } catch (e: any) {
+    out.push({ label: "Token claims", ok: false, detail: e?.message || "Token read failed" });
+  }
+  // Single-get own doc (no list involved)
+  try {
+    const snap = await getDoc(doc(dbInstance, "users", u.uid));
+    out.push({
+      label: "Own profile read",
+      ok: snap.exists(),
+      detail: snap.exists() ? `role=${(snap.data() as any).role || "?"}` : "doc missing",
+    });
+  } catch (e: any) {
+    out.push({ label: "Own profile read", ok: false, detail: e?.message || String(e) });
+  }
+  // Small list (limit 1): passes even under tight per-request budgets
+  try {
+    const snap = await getDocs(query(collection(dbInstance, "users"), limit(1)));
+    out.push({ label: "Users list (1 doc probe)", ok: true, detail: `returned ${snap.size}` });
+  } catch (e: any) {
+    out.push({ label: "Users list (1 doc probe)", ok: false, detail: e?.message || String(e) });
+  }
+  // Full list
+  try {
+    const snap = await getDocs(collection(dbInstance, "users"));
+    out.push({ label: "Users list (full)", ok: true, detail: `${snap.size} docs readable` });
+  } catch (e: any) {
+    out.push({ label: "Users list (full)", ok: false, detail: e?.message || String(e) });
+  }
+  // Indexed orderBy query (region/search path)
+  try {
+    const snap = await getDocs(query(collection(dbInstance, "vehicles"), orderBy("reg_norm"), limit(1)));
+    out.push({ label: "Vehicle index probe", ok: true, detail: `returned ${snap.size}` });
+  } catch (e: any) {
+    out.push({ label: "Vehicle index probe", ok: false, detail: e?.message || String(e) });
+  }
+  return out;
 }
 
 // One-time migration (super admin, BEFORE publishing secure rules):
@@ -1295,6 +1413,15 @@ export async function migrateLegacyUsers(
         email: syntheticEmail(mobile),
         auth_uid: uid,
       });
+      // Token scope pack (rules v2 identity) — needs a fresh sign-in
+      try {
+        await setAuthScope(mobile, password, authScopePack(data.role || "NORMAL_USER", mobile, data.creator_mobile || mobile));
+      } catch (e: any) {
+        results.push({ mobile, name, status: "failed", note: "Doc created but scope pack failed: " + (e?.message || "sign-in failed") });
+        done++;
+        try { onProgress?.(done, legacy.length); } catch (err) {}
+        continue;
+      }
       results.push({
         mobile,
         name,

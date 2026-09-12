@@ -93,6 +93,12 @@ export default function App() {
           setAuthLoading(false);
           return;
         }
+        // Fresh token so rules see current scope claims (not a stale cached one)
+        try {
+          await fbUser.getIdToken(true);
+        } catch (e) {
+          console.warn("Token force-refresh failed on restore.", e);
+        }
       }
       const cachedUser = localStorage.getItem("ACTIVE_USER_SESSION");
       if (cachedUser) {
@@ -171,12 +177,19 @@ export default function App() {
   };
 
   // Auto-logout mid-session: recharge beech me expire ho to turant bahar.
-  // Har 5 min + tab wapas khulne pe re-check.
+  // Har 5 min + tab wapas khulne pe re-check. Token bhi force-refresh hota
+  // hai taaki backfill/role-change ke baad stale claims se deny na ho.
   useEffect(() => {
     if (!currentUser) return;
     let cancelled = false;
     const recheck = async () => {
       try {
+        try {
+          await getAuth().currentUser?.getIdToken(true);
+        } catch (e) {
+          console.warn("Token force-refresh failed on recheck.", e);
+        }
+        if (cancelled) return;
         const res = await checkUserSubscription(currentUser);
         if (!res.ok && !cancelled) {
           localStorage.removeItem("ACTIVE_USER_SESSION");

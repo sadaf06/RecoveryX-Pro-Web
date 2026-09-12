@@ -11,13 +11,17 @@ import {
   isRealFirebase,
   createAuthUser,
   resetAuthPassword,
+  setAuthScope,
+  authScopePack,
   deleteAuthUser,
   userDocId,
   syntheticEmail,
   migrateLegacyUsers,
+  backfillTokenScopes,
   cleanupLegacyUserDocs,
+  runDiagnostics,
 } from "../firebase";
-import type { MigrationResult } from "../firebase";
+import type { MigrationResult, BackfillResult, DiagResult } from "../firebase";
 import AgentView from "./AgentView";
 import * as XLSX from "xlsx";
 import { 
@@ -140,6 +144,54 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   const [migTotal, setMigTotal] = useState(0);
   const [migResults, setMigResults] = useState<MigrationResult[]>([]);
   const [cleanupRunning, setCleanupRunning] = useState(false);
+  // Token scope backfill for already-migrated accounts (rules v2 identity)
+  const [scopeRunning, setScopeRunning] = useState(false);
+  const [scopeDone, setScopeDone] = useState(0);
+  const [scopeTotal, setScopeTotal] = useState(0);
+  const [scopeResults, setScopeResults] = useState<BackfillResult[]>([]);
+  // Live token claims diagnostic (proves what rules actually see)
+  const [tokenInfo, setTokenInfo] = useState("");
+  // Full connection diagnostics (token + single-get + small/full list + index probe)
+  const [diagRunning, setDiagRunning] = useState(false);
+  const [diagResults, setDiagResults] = useState<DiagResult[]>([]);
+
+  const checkMyToken = async () => {
+    setTokenInfo("Checking...");
+    try {
+      const { getAuth } = await import("firebase/auth");
+      const u = getAuth().currentUser;
+      if (!u) {
+        setTokenInfo("No Firebase session. Logout + login first.");
+        return;
+      }
+      const tok = await u.getIdTokenResult(true);
+      setTokenInfo(`email=${tok.claims.email || "?"} | name=${(tok.claims as any).name || "(missing — relogin needed)"}`);
+    } catch (e: any) {
+      setTokenInfo("Token check failed: " + (e?.message || e));
+    }
+  };
+
+  const runScopeBackfill = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setScopeResults([]);
+    setScopeDone(0);
+    setScopeTotal(0);
+    setScopeRunning(true);
+    try {
+      const results = await backfillTokenScopes((done, total) => {
+        setScopeDone(done);
+        setScopeTotal(total);
+      });
+      setScopeResults(results);
+      const ok = results.filter(r => r.status === "fixed").length;
+      setSuccessMsg(`Scope backfill finished: ${ok} fixed out of ${results.length}. Everyone must logout+login once.`);
+    } catch (e: any) {
+      setErrorMsg(e?.message || "Scope backfill failed.");
+    } finally {
+      setScopeRunning(false);
+    }
+  };
 
   const runMigration = async () => {
     setErrorMsg("");
@@ -351,12 +403,22 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       }
 
       const passwordChanged = passwordTrimmed !== (editingUser.password || "");
+      const roleChanged = editUserRole !== editingUser.role;
+      const newPack = authScopePack(editUserRole, editingUser.mobile, editingUser.creator_mobile);
       if (isRealFirebase && passwordChanged) {
         // Reset the Auth password first (needs the current one on record)
         try {
-          await resetAuthPassword(editingUser.mobile, editingUser.password || "", passwordTrimmed);
+          await resetAuthPassword(editingUser.mobile, editingUser.password || "", passwordTrimmed, newPack);
         } catch (e: any) {
           setErrorMsg(e?.message || "Auth password reset failed. Nothing was saved.");
+          return;
+        }
+      } else if (isRealFirebase && roleChanged) {
+        // Role changed: refresh the token scope pack so rules see the new role
+        try {
+          await setAuthScope(editingUser.mobile, passwordTrimmed, newPack);
+        } catch (e: any) {
+          setErrorMsg("Auth scope update failed. Nothing was saved.");
           return;
         }
       }
@@ -480,7 +542,11 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         // Secure mode: Auth account first (UID becomes the Firestore doc ID)
         let uid = "";
         try {
-          uid = await createAuthUser(mobileTrimmed, passwordTrimmed);
+          uid = await createAuthUser(
+            mobileTrimmed,
+            passwordTrimmed,
+            authScopePack(newUserRole, mobileTrimmed, user.mobile)
+          );
         } catch (e: any) {
           setErrorMsg(e?.message || "Failed to create secure login.");
           return;
@@ -1192,8 +1258,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         {activeTab === "DASHBOARD" && (
           <div className="w-full max-w-7xl mx-auto space-y-5 lg:space-y-6">
             {/* Recharge status for plain admins */}
-            {isAdmin && !isSuperAdmin && ownSub && (() => {
-              const state = getSubscriptionState(ownSub);
+            {isAdmin && !isSuperAdmin && ownSub && (() => {              const state = getSubscriptionState(ownSub);
               const blocked = state === "blocked";
               const expiring = state === "expiring";
               return (
@@ -1218,6 +1283,54 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
               </div>
               );
             })()}
+            {/* Token diagnostic — visible to every admin (proves what rules see) */}
+            {isAdmin && (
+              <div className="rounded-2xl border border-white/5 bg-white/[0.015] p-4 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    onClick={checkMyToken}
+                    className="shrink-0 rounded-xl px-4 min-h-[44px] text-xs font-bold glass-btn-secondary cursor-pointer"
+                  >
+                    Check My Token
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setDiagRunning(true);
+                      setDiagResults([]);
+                      try {
+                        setDiagResults(await runDiagnostics());
+                      } catch (e: any) {
+                        setDiagResults([{ label: "Diagnostics", ok: false, detail: e?.message || String(e) }]);
+                      } finally {
+                        setDiagRunning(false);
+                      }
+                    }}
+                    disabled={diagRunning}
+                    className="shrink-0 rounded-xl px-4 min-h-[44px] text-xs font-bold glass-btn-secondary disabled:opacity-50 cursor-pointer"
+                  >
+                    {diagRunning ? "Diagnosing..." : "Run Diagnostics"}
+                  </button>
+                  <p className="text-[11px] font-mono text-indigo-300 break-all select-all min-w-0">
+                    {tokenInfo ? `Token → ${tokenInfo}` : "Apne login session ka scope yahan verify karo."}
+                  </p>
+                </div>
+                {diagResults.length > 0 && (
+                  <div className="space-y-1.5">
+                    {diagResults.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2.5 rounded-lg border border-white/5 bg-slate-950/60 px-3 py-2 text-xs">
+                        <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                          r.ok ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                        }`}>{r.ok ? "PASS" : "FAIL"}</span>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-200">{r.label}</p>
+                          <p className="font-mono text-slate-500 break-all">{r.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Stats Row — 2 cols on mobile, 3 cols on desktop */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="rounded-2xl border border-white/5 p-5 shadow-sm bg-white/[0.015] backdrop-blur-sm relative overflow-hidden group hover:border-white/10 transition-colors">
@@ -1535,6 +1648,21 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       {migRunning ? `Migrating ${migDone}/${migTotal}...` : "Run Migration"}
                     </button>
                     <button
+                      onClick={runScopeBackfill}
+                      disabled={scopeRunning || migRunning}
+                      title="Packs ROLE:mobile:scope into every Auth account (rules v2 identity). Needs OPEN rules briefly."
+                      className="shrink-0 rounded-xl px-5 min-h-[44px] text-sm font-bold glass-btn-secondary disabled:opacity-50 cursor-pointer"
+                    >
+                      {scopeRunning ? `Fixing scopes ${scopeDone}/${scopeTotal}...` : "Fix Token Scopes"}
+                    </button>
+                    <button
+                      onClick={checkMyToken}
+                      title="Shows what the live token carries (what rules see)"
+                      className="shrink-0 rounded-xl px-5 min-h-[44px] text-sm font-bold glass-btn-secondary cursor-pointer"
+                    >
+                      Check My Token
+                    </button>
+                    <button
                       onClick={() => {
                         confirmAction(
                           "Delete Legacy Docs",
@@ -1565,6 +1693,28 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                   {migRunning && (
                     <div className="w-full bg-slate-950/60 rounded-full h-2 overflow-hidden border border-white/5">
                       <div className="bg-amber-500 h-full transition-all duration-300" style={{ width: migTotal ? `${Math.round((migDone / migTotal) * 100)}%` : "0%" }} />
+                    </div>
+                  )}
+                  {scopeRunning && (
+                    <div className="w-full bg-slate-950/60 rounded-full h-2 overflow-hidden border border-white/5">
+                      <div className="bg-indigo-500 h-full transition-all duration-300" style={{ width: scopeTotal ? `${Math.round((scopeDone / scopeTotal) * 100)}%` : "0%" }} />
+                    </div>
+                  )}
+                  {tokenInfo && (
+                    <p className="text-xs font-mono text-indigo-300 break-all select-all">Token → {tokenInfo}</p>
+                  )}
+                  {scopeResults.length > 0 && (
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                      {scopeResults.map(r => (
+                        <div key={r.mobile} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 rounded-lg border border-white/5 bg-slate-950/60 px-3 py-2 text-xs">
+                          <span className="font-mono font-bold text-slate-200">{r.mobile}</span>
+                          <span className="text-slate-500 truncate">{r.name}</span>
+                          <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                            r.status === "fixed" ? "bg-indigo-500/10 text-indigo-400" : "bg-rose-500/10 text-rose-400"
+                          }`}>{r.status}</span>
+                          <span className="text-slate-400 truncate">{r.note}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                   {migResults.length > 0 && (

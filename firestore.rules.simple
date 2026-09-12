@@ -1,14 +1,12 @@
 rules_version = '2';
 
 // ============================================================
-// SECURE RULES v3 — token claims, zero parsing, zero get().
-//   email = "<mobile>@recoveryx.app"   (identity)
-//   name  = "<scope>"                  (admin mobile, or ALL)
-// No split(), no `in`, no null-guards, no get() — every expression
-// is total on well-formed tokens. A scope-less (stale) token simply
-// matches nothing, which forces a re-login (safe direction).
-// Cutover: 1) backfill scopes (OPEN rules briefly) 2) publish THIS
-// 3) EVERYONE logout+login 4) update all apps.
+// SIMPLIFIED RULES — recovery step (ralph/firestore-nodata-fix).
+// Reads: any authenticated user (get + list, all collections).
+// Writes: stay role-scoped exactly as v3 (no open writes).
+// Publish: paste whole file in console -> Publish -> wait 2 min ->
+// EVERYONE logout+login -> verify via Diagnostics (5/5 PASS).
+// Tightening user-doc reads is tracked as US-006 (later, verified).
 // ============================================================
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -28,7 +26,6 @@ service cloud.firestore {
     function tokMobile() {
       return tokEmail().split('@')[0];
     }
-    // Requester administers a node when their scope is themselves/ALL
     function tokIsScopeAdmin() {
       return tokScope() == 'ALL' || tokScope() == tokMobile();
     }
@@ -95,20 +92,9 @@ service cloud.firestore {
              data.status in ['ACTIVE', 'EXPIRED'];
     }
 
-    // --- users (doc ID = Auth UID; passwords NEVER listable by others) ---
+    // --- users ---
     match /users/{uid} {
-      allow get: if signedIn() && (
-        request.auth.uid == uid ||
-        tokIsSuper() ||
-        resource.data.creator_mobile == tokScope() ||
-        resource.data.mobile == tokMobile()
-      );
-      // Per-doc filtering: admins get own tree, agents only themselves.
-      allow list: if signedIn() && (
-        tokIsSuper() ||
-        resource.data.creator_mobile == tokScope() ||
-        resource.data.mobile == tokMobile()
-      );
+      allow get, list: if signedIn();
       allow create: if signedIn() && isValidUser(request.resource.data) && (
         tokIsSuper() ||
         (tokIsScopeAdmin() &&
@@ -134,9 +120,7 @@ service cloud.firestore {
 
     // --- vehicles ---
     match /vehicles/{vehicleId} {
-      allow get, list: if signedIn() && (
-        tokIsSuper() || resource.data.creator_mobile == tokScope()
-      );
+      allow get, list: if signedIn();
       allow create: if signedIn() && isValidVehicle(request.resource.data) && (
         tokIsSuper() || request.resource.data.creator_mobile == tokMobile()
       );
@@ -147,9 +131,7 @@ service cloud.firestore {
 
     // --- uploaded files ---
     match /uploaded_files/{fileId} {
-      allow get, list: if signedIn() && (
-        tokIsSuper() || resource.data.admin_mobile == tokScope()
-      );
+      allow get, list: if signedIn();
       allow create: if signedIn() && isValidUploadedFile(request.resource.data) && (
         tokIsSuper() || request.resource.data.admin_mobile == tokMobile()
       );
@@ -160,9 +142,7 @@ service cloud.firestore {
 
     // --- search histories ---
     match /search_histories/{historyId} {
-      allow get, list: if signedIn() && (
-        tokIsSuper() || resource.data.creator_mobile == tokScope()
-      );
+      allow get, list: if signedIn();
       allow create: if signedIn() && isValidSearchHistory(request.resource.data);
       allow update, delete: if signedIn() && (
         tokIsSuper() || resource.data.creator_mobile == tokScope()
@@ -181,7 +161,7 @@ service cloud.firestore {
 
     // --- subscriptions (recharge: super-admin only writes) ---
     match /subscriptions/{adminMobile} {
-      allow get, list: if signedIn() && (tokIsSuper() || adminMobile == tokScope());
+      allow get, list: if signedIn();
       allow create, update, delete: if signedIn() && tokIsSuper();
     }
   }
