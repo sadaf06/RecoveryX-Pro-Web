@@ -8,3 +8,6 @@ Started: ralph/firestore-nodata-fix
 
 ## US-002: Verify admin on web — DONE
 - Diagnostics 5/5 PASS (admin session). Simplified rules live.
+
+## US-006: in progress (code done, user verification pending)
+- Vault rules + service + rewires pushed both apps. User must: republish firestore.rules.simple, run Move Passwords to Vault, verify.
