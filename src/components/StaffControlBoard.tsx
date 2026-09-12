@@ -19,6 +19,7 @@ import {
   migrateLegacyUsers,
   backfillTokenScopes,
   cleanupLegacyUserDocs,
+  vaultService,
   runDiagnostics,
 } from "../firebase";
 import type { MigrationResult, BackfillResult, DiagResult } from "../firebase";
@@ -149,6 +150,11 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   const [scopeDone, setScopeDone] = useState(0);
   const [scopeTotal, setScopeTotal] = useState(0);
   const [scopeResults, setScopeResults] = useState<BackfillResult[]>([]);
+  // Password vault move (US-006: passwords out of listable docs)
+  const [vaultRunning, setVaultRunning] = useState(false);
+  const [vaultDone, setVaultDone] = useState(0);
+  const [vaultTotal, setVaultTotal] = useState(0);
+  const [vaultSummary, setVaultSummary] = useState("");
   // Live token claims diagnostic (proves what rules actually see)
   const [tokenInfo, setTokenInfo] = useState("");
   // Full connection diagnostics (token + single-get + small/full list + index probe)
@@ -405,12 +411,37 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       const passwordChanged = passwordTrimmed !== (editingUser.password || "");
       const roleChanged = editUserRole !== editingUser.role;
       const newPack = authScopePack(editUserRole, editingUser.mobile, editingUser.creator_mobile);
+      const editingUid = userDocId(editingUser);
       if (isRealFirebase && passwordChanged) {
+        // Current password comes from the vault (docs stay blank)
+        let currentPw = "";
+        try {
+          const secret = await vaultService.getSecret(editingUid);
+          currentPw = (secret?.password || "").trim();
+        } catch (e) {}
+        if (!currentPw) {
+          // Fallback for not-yet-moved accounts
+          currentPw = editingUser.password || "";
+        }
+        if (!currentPw) {
+          setErrorMsg("Current password unknown — run Move Passwords to Vault first.");
+          return;
+        }
         // Reset the Auth password first (needs the current one on record)
         try {
-          await resetAuthPassword(editingUser.mobile, editingUser.password || "", passwordTrimmed, newPack);
+          await resetAuthPassword(editingUser.mobile, currentPw, passwordTrimmed, newPack);
         } catch (e: any) {
           setErrorMsg(e?.message || "Auth password reset failed. Nothing was saved.");
+          return;
+        }
+        try {
+          await vaultService.saveSecret(editingUid, {
+            password: passwordTrimmed,
+            admin_mobile: editingUser.creator_mobile || editingUser.mobile,
+            mobile: editingUser.mobile,
+          });
+        } catch (e) {
+          setErrorMsg("Auth updated but vault save failed. Retry.");
           return;
         }
       } else if (isRealFirebase && roleChanged) {
@@ -440,7 +471,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       } else {
         await FirebaseService.updateUser(userDocId(editingUser), {
           name: editUserName.trim(),
-          password: passwordTrimmed,
+          ...(isRealFirebase ? {} : { password: passwordTrimmed }),
           role: editUserRole,
           status: editUserStatus,
           registered_device_id: editUserDevice.trim()
@@ -530,7 +561,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       const newUserObj: User = {
         name: newUserName.trim(),
         mobile: mobileTrimmed,
-        password: passwordTrimmed,
+        password: isRealFirebase ? "" : passwordTrimmed, // real: vault holds it, doc stays blank
         role: newUserRole,
         status: "ACTIVE",
         registered_device_id: "",
@@ -557,9 +588,18 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
             uid,
             email: syntheticEmail(mobileTrimmed),
           });
+          await vaultService.saveSecret(uid, {
+            password: passwordTrimmed,
+            admin_mobile: user.mobile,
+            mobile: mobileTrimmed,
+          });
         } catch (e) {
           // Roll back the orphaned Auth account (best effort)
           try { await deleteAuthUser(mobileTrimmed, passwordTrimmed); } catch (err) {}
+          try {
+            const createdUid = uid;
+            if (createdUid) await FirebaseService.deleteUser(createdUid);
+          } catch (err) {}
           setErrorMsg("Failed to register new account in database.");
           console.error(e);
           return;
@@ -614,6 +654,9 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       async () => {
         try {
           await FirebaseService.deleteUser(userDocId(targetUser));
+          if (isRealFirebase && (targetUser as any).uid) {
+            try { await vaultService.deleteSecret((targetUser as any).uid); } catch (e) {}
+          }
           setSuccessMsg("Account successfully discarded.");          loadUsers();
         } catch (e) {
           setErrorMsg("Failed to delete account from system.");
@@ -1663,6 +1706,35 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                       Check My Token
                     </button>
                     <button
+                      onClick={async () => {
+                        setErrorMsg("");
+                        setSuccessMsg("");
+                        setVaultSummary("");
+                        setVaultDone(0);
+                        setVaultTotal(0);
+                        setVaultRunning(true);
+                        try {
+                          const res = await vaultService.movePasswordsToVault((done, total) => {
+                            setVaultDone(done);
+                            setVaultTotal(total);
+                          });
+                          const msg = `Vault move done: ${res.moved} moved, ${res.skipped} skipped, ${res.failed} failed.`;
+                          setVaultSummary(msg);
+                          setSuccessMsg(msg + " Reload users to verify blank passwords.");
+                          loadUsers();
+                        } catch (e: any) {
+                          setErrorMsg(e?.message || "Vault move failed.");
+                        } finally {
+                          setVaultRunning(false);
+                        }
+                      }}
+                      disabled={vaultRunning || migRunning || scopeRunning}
+                      title="Moves users.password into locked user_secrets docs (one-time)"
+                      className="shrink-0 rounded-xl px-5 min-h-[44px] text-sm font-bold glass-btn-secondary disabled:opacity-50 cursor-pointer"
+                    >
+                      {vaultRunning ? `Moving ${vaultDone}/${vaultTotal}...` : "Move Passwords to Vault"}
+                    </button>
+                    <button
                       onClick={() => {
                         confirmAction(
                           "Delete Legacy Docs",
@@ -1699,6 +1771,14 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                     <div className="w-full bg-slate-950/60 rounded-full h-2 overflow-hidden border border-white/5">
                       <div className="bg-indigo-500 h-full transition-all duration-300" style={{ width: scopeTotal ? `${Math.round((scopeDone / scopeTotal) * 100)}%` : "0%" }} />
                     </div>
+                  )}
+                  {vaultRunning && (
+                    <div className="w-full bg-slate-950/60 rounded-full h-2 overflow-hidden border border-white/5">
+                      <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: vaultTotal ? `${Math.round((vaultDone / vaultTotal) * 100)}%` : "0%" }} />
+                    </div>
+                  )}
+                  {vaultSummary && (
+                    <p className="text-xs font-mono text-emerald-300 break-all select-all">{vaultSummary}</p>
                   )}
                   {tokenInfo && (
                     <p className="text-xs font-mono text-indigo-300 break-all select-all">Token → {tokenInfo}</p>

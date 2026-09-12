@@ -179,6 +179,21 @@ service cloud.firestore {
       allow delete: if signedIn() && tokIsSuper();
     }
 
+    // --- user secrets (password vault: NO list access for anyone) ---
+    match /user_secrets/{uid} {
+      allow get: if signedIn() && (
+        request.auth.uid == uid ||
+        tokIsSuper() ||
+        resource.data.admin_mobile == tokScope()
+      );
+      allow create, update: if signedIn() &&
+        (resource == null || resource.data.admin_mobile == tokScope() || tokIsSuper()) &&
+        (tokIsSuper() || request.resource.data.admin_mobile == tokMobile());
+      allow delete: if signedIn() && (
+        tokIsSuper() || resource.data.admin_mobile == tokScope()
+      );
+    }
+
     // --- subscriptions (recharge: super-admin only writes) ---
     match /subscriptions/{adminMobile} {
       allow get, list: if signedIn() && (tokIsSuper() || adminMobile == tokScope());

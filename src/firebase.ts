@@ -1437,6 +1437,83 @@ export async function migrateLegacyUsers(
   }
   return results;
 }
+export interface UserSecret {
+  password: string;
+  admin_mobile: string; // owner admin node (scoping)
+  mobile: string;
+}
+
+// -------------------------------------------------------------
+// 8. PASSWORD VAULT (US-006: passwords OUT of listable user docs)
+// -------------------------------------------------------------
+export const vaultService = {
+  getSecret: async (uid: string): Promise<UserSecret | null> => {
+    if (!isRealFirebase || !dbInstance) return null;
+    try {
+      const snap = await getDoc(doc(dbInstance, "user_secrets", uid));
+      if (!snap.exists()) return null;
+      return snap.data() as UserSecret;
+    } catch (e) {
+      console.error("Vault read failed", e);
+      return null;
+    }
+  },
+
+  saveSecret: async (uid: string, secret: UserSecret): Promise<void> => {
+    if (!isRealFirebase || !dbInstance) return;
+    const path = `user_secrets/${uid}`;
+    try {
+      await setDoc(doc(dbInstance, "user_secrets", uid), secret);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, path);
+    }
+  },
+
+  deleteSecret: async (uid: string): Promise<void> => {
+    if (!isRealFirebase || !dbInstance) return;
+    try {
+      await deleteDoc(doc(dbInstance, "user_secrets", uid));
+    } catch (e) {
+      console.error("Vault delete failed", e);
+    }
+  },
+
+  // One-time move: users.password -> user_secrets/{uid}, then blank the doc field.
+  movePasswordsToVault: async (
+    onProgress?: (done: number, total: number) => void
+  ): Promise<{ moved: number; skipped: number; failed: number }> => {
+    let moved = 0;
+    let skipped = 0;
+    let failed = 0;
+    if (!isRealFirebase || !dbInstance) return { moved, skipped, failed };
+    const users = await FirebaseService.getUsers();
+    let done = 0;
+    for (const u of users) {
+      try {
+        const uid = (u as any).uid;
+        const pw = (u.password || "").trim();
+        if (!uid || !pw) {
+          skipped++;
+        } else {
+          await vaultService.saveSecret(uid, {
+            password: pw,
+            admin_mobile: u.creator_mobile || u.mobile,
+            mobile: u.mobile,
+          });
+          await FirebaseService.updateUser(uid, { password: "" } as any);
+          moved++;
+        }
+      } catch (e) {
+        console.error("Vault move failed for", u.mobile, e);
+        failed++;
+      }
+      done++;
+      try { onProgress?.(done, users.length); } catch (err) {}
+    }
+    return { moved, skipped, failed };
+  },
+};
+
 // -------------------------------------------------------------
 // 5. SUBSCRIPTION GATE (recharge khtm -> login band)
 // -------------------------------------------------------------
