@@ -382,10 +382,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     const mobileTrimmed = editUserMobile.trim();
     const passwordTrimmed = editUserPassword.trim();
 
-    if (!mobileTrimmed || !editUserName.trim() || !passwordTrimmed) {
-      setErrorMsg("All fields are required to register edits.");
+    if (!mobileTrimmed || !editUserName.trim()) {
+      setErrorMsg("Name and mobile are required.");
       return;
     }
+
+    // Empty password = keep current one (vault holds it, docs stay blank)
+    const wantPasswordChange = passwordTrimmed.length > 0;
 
     // Validate 10-digit mobile number
     const isTenDigitMobile = /^\d{10}$/.test(mobileTrimmed);
@@ -394,11 +397,13 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       return;
     }
 
-    // Validate 6-digit or alphanumeric password
-    const isValidPassword = /^[a-zA-Z0-9]{6}$/.test(passwordTrimmed);
-    if (!isValidPassword) {
-      setErrorMsg("Validation Error: Password must be exactly 6 characters and alphanumeric (digits or letters).");
-      return;
+    // Validate 6-digit or alphanumeric password (only when changing it)
+    if (wantPasswordChange) {
+      const isValidPassword = /^[a-zA-Z0-9]{6}$/.test(passwordTrimmed);
+      if (!isValidPassword) {
+        setErrorMsg("Validation Error: Password must be exactly 6 characters and alphanumeric (digits or letters).");
+        return;
+      }
     }
 
     try {
@@ -408,13 +413,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         return;
       }
 
-      const passwordChanged = passwordTrimmed !== (editingUser.password || "");
       const roleChanged = editUserRole !== editingUser.role;
       const newPack = authScopePack(editUserRole, editingUser.mobile, editingUser.creator_mobile);
       const editingUid = userDocId(editingUser);
-      if (isRealFirebase && passwordChanged) {
-        // Current password comes from the vault (docs stay blank)
-        let currentPw = "";
+      // Current password lives in the vault (docs stay blank since US-006)
+      let currentPw = "";
+      if (isRealFirebase && (wantPasswordChange || roleChanged)) {
         try {
           const secret = await vaultService.getSecret(editingUid);
           currentPw = (secret?.password || "").trim();
@@ -427,6 +431,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
           setErrorMsg("Current password unknown — run Move Passwords to Vault first.");
           return;
         }
+      }
+      if (isRealFirebase && wantPasswordChange) {
         // Reset the Auth password first (needs the current one on record)
         try {
           await resetAuthPassword(editingUser.mobile, currentPw, passwordTrimmed, newPack);
@@ -447,7 +453,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       } else if (isRealFirebase && roleChanged) {
         // Role changed: refresh the token scope pack so rules see the new role
         try {
-          await setAuthScope(editingUser.mobile, passwordTrimmed, newPack);
+          await setAuthScope(editingUser.mobile, currentPw, newPack);
         } catch (e: any) {
           setErrorMsg("Auth scope update failed. Nothing was saved.");
           return;
@@ -459,7 +465,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         const updatedUserObj: User = {
           name: editUserName.trim(),
           mobile: mobileTrimmed,
-          password: passwordTrimmed,
+          password: passwordTrimmed || editingUser.password || "",
           role: editUserRole,
           status: editUserStatus,
           registered_device_id: editUserDevice.trim(),
@@ -2159,9 +2165,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                     autoComplete="new-password"
                     value={editUserPassword}
                     onChange={(e) => setEditUserPassword(e.target.value)}
-                    placeholder="6-char Alphanumeric"
+                    placeholder="Leave blank to keep current"
                     className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
-                    required
                   />
                 </div>
 
