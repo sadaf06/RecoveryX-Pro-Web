@@ -654,14 +654,30 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     
     confirmAction(
       "Permanently Delete User",
-      isRealFirebase
-        ? "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible. (Their login account may remain orphaned.)"
-        : "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible.",
+      "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible.",
       async () => {
         try {
-          await FirebaseService.deleteUser(userDocId(targetUser));
+          const uid = userDocId(targetUser);
+          // Need the password BEFORE wiping (for Auth self-delete)
+          let pw = "";
+          if (isRealFirebase && (targetUser as any).uid) {
+            try {
+              const secret = await vaultService.getSecret((targetUser as any).uid);
+              pw = (secret?.password || "").trim();
+            } catch (e) {}
+          }
+          if (!pw) pw = (targetUser.password || "").trim();
+          await FirebaseService.deleteUser(uid);
           if (isRealFirebase && (targetUser as any).uid) {
             try { await vaultService.deleteSecret((targetUser as any).uid); } catch (e) {}
+            // Full cleanup: sign in as the user and delete their Auth account
+            if (pw) {
+              try {
+                await deleteAuthUser(targetUser.mobile, pw);
+              } catch (e) {
+                console.error("Auth cleanup failed (orphan may remain)", e);
+              }
+            }
           }
           setSuccessMsg("Account successfully discarded.");          loadUsers();
         } catch (e) {
