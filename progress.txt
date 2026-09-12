@@ -11,3 +11,7 @@ Started: ralph/firestore-nodata-fix
 
 ## US-006: in progress (code done, user verification pending)
 - Vault rules + service + rewires pushed both apps. User must: republish firestore.rules.simple, run Move Passwords to Vault, verify.
+
+## US-003/US-004/US-005: user-confirmed clean on both apps
+
+## US-006: DONE (vault verified — Config passwords blank, reset flow working)
