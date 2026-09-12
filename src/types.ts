@@ -7,8 +7,10 @@ export type UserRole = "SUPER_ADMIN" | "ADMIN" | "OFFICE_STAFF" | "NORMAL_USER";
 export type UserStatus = "ACTIVE" | "DISABLED";
 
 export interface User {
+  uid?: string; // Firestore doc ID + Firebase Auth UID (secure mode)
+  email?: string; // Synthetic login email (secure mode)
   name: string;
-  mobile: string; // Document ID
+  mobile: string;
   password?: string;
   role: UserRole;
   status: UserStatus;

@@ -7,6 +7,17 @@ import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { User, Vehicle, UploadedFile, FieldPermissions, SearchHistory, Subscription, UserRole, UserStatus } from "../types";
 import { FirebaseService, subscriptionDaysLeft, formatTimeLeft, formatTimeLeftShort, getSubscriptionState, isExemptUser } from "../firebase";
+import {
+  isRealFirebase,
+  createAuthUser,
+  resetAuthPassword,
+  deleteAuthUser,
+  userDocId,
+  syntheticEmail,
+  migrateLegacyUsers,
+  cleanupLegacyUserDocs,
+} from "../firebase";
+import type { MigrationResult } from "../firebase";
 import AgentView from "./AgentView";
 import * as XLSX from "xlsx";
 import { 
@@ -122,6 +133,37 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
   const [subsMap, setSubsMap] = useState<Record<string, Subscription | null>>({});
   const [ownSub, setOwnSub] = useState<Subscription | null>(null);
   const [subAdmins, setSubAdmins] = useState<User[]>([]);
+
+  // Secure Auth migration (super admin one-time)
+  const [migRunning, setMigRunning] = useState(false);
+  const [migDone, setMigDone] = useState(0);
+  const [migTotal, setMigTotal] = useState(0);
+  const [migResults, setMigResults] = useState<MigrationResult[]>([]);
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+
+  const runMigration = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    setMigResults([]);
+    setMigDone(0);
+    setMigTotal(0);
+    setMigRunning(true);
+    try {
+      const results = await migrateLegacyUsers((done, total) => {
+        setMigDone(done);
+        setMigTotal(total);
+      });
+      setMigResults(results);
+      const ok = results.filter(r => r.status === "created").length;
+      const fail = results.length - ok;
+      setSuccessMsg(`Migration finished: ${ok} created, ${fail} failed out of ${results.length} legacy accounts.`);
+      loadUsers();
+    } catch (e: any) {
+      setErrorMsg(e?.message || "Migration failed.");
+    } finally {
+      setMigRunning(false);
+    }
+  };
 
   const loadSubscriptions = async (admins: User[]) => {
     if (!canManageSubs) return;
@@ -302,23 +344,39 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     }
 
     try {
-      const updatedUserObj: User = {
-        name: editUserName.trim(),
-        mobile: mobileTrimmed,
-        password: passwordTrimmed,
-        role: editUserRole,
-        status: editUserStatus,
-        registered_device_id: editUserDevice.trim(),
-        is_first_time: editingUser.is_first_time,
-        creator_mobile: editingUser.creator_mobile
-      };
+      // Secure mode: mobile is the login identity — it cannot be changed.
+      if (isRealFirebase && editingUser.mobile !== mobileTrimmed) {
+        setErrorMsg("Mobile number cannot be changed (it is the login identity). Create a new account instead.");
+        return;
+      }
 
-      if (editingUser.mobile !== mobileTrimmed) {
-        // Since mobile acts as document ID, delete old document and add new
+      const passwordChanged = passwordTrimmed !== (editingUser.password || "");
+      if (isRealFirebase && passwordChanged) {
+        // Reset the Auth password first (needs the current one on record)
+        try {
+          await resetAuthPassword(editingUser.mobile, editingUser.password || "", passwordTrimmed);
+        } catch (e: any) {
+          setErrorMsg(e?.message || "Auth password reset failed. Nothing was saved.");
+          return;
+        }
+      }
+
+      if (!isRealFirebase && editingUser.mobile !== mobileTrimmed) {
+        // Mock mode only: mobile acts as document ID, delete old document and add new
+        const updatedUserObj: User = {
+          name: editUserName.trim(),
+          mobile: mobileTrimmed,
+          password: passwordTrimmed,
+          role: editUserRole,
+          status: editUserStatus,
+          registered_device_id: editUserDevice.trim(),
+          is_first_time: editingUser.is_first_time,
+          creator_mobile: editingUser.creator_mobile
+        };
         await FirebaseService.deleteUser(editingUser.mobile);
         await FirebaseService.addUser(updatedUserObj);
       } else {
-        await FirebaseService.updateUser(editingUser.mobile, {
+        await FirebaseService.updateUser(userDocId(editingUser), {
           name: editUserName.trim(),
           password: passwordTrimmed,
           role: editUserRole,
@@ -342,7 +400,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     setErrorMsg("");
     setSuccessMsg("");
     try {
-      await FirebaseService.updateUser(targetUser.mobile, { registered_device_id: "" });
+      await FirebaseService.updateUser(userDocId(targetUser), { registered_device_id: "" });
       setSuccessMsg(`Device registry cleared for user ${targetUser.name}.`);
       loadUsers();
     } catch (e) {
@@ -418,7 +476,31 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
         creator_mobile: user.mobile
       };
 
-      await FirebaseService.addUser(newUserObj);
+      if (isRealFirebase) {
+        // Secure mode: Auth account first (UID becomes the Firestore doc ID)
+        let uid = "";
+        try {
+          uid = await createAuthUser(mobileTrimmed, passwordTrimmed);
+        } catch (e: any) {
+          setErrorMsg(e?.message || "Failed to create secure login.");
+          return;
+        }
+        try {
+          await FirebaseService.addUser({
+            ...newUserObj,
+            uid,
+            email: syntheticEmail(mobileTrimmed),
+          });
+        } catch (e) {
+          // Roll back the orphaned Auth account (best effort)
+          try { await deleteAuthUser(mobileTrimmed, passwordTrimmed); } catch (err) {}
+          setErrorMsg("Failed to register new account in database.");
+          console.error(e);
+          return;
+        }
+      } else {
+        await FirebaseService.addUser(newUserObj);
+      }
       setSuccessMsg(`Account successfully registered for ${newUserName}!`);
       setNewUserMobile("");
       setNewUserName("");
@@ -441,7 +523,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
 
     const nextStatus = targetUser.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
     try {
-      await FirebaseService.updateUser(targetUser.mobile, { status: nextStatus });
+      await FirebaseService.updateUser(userDocId(targetUser), { status: nextStatus });
       setSuccessMsg(`Status updated for ${targetUser.name}.`);
       loadUsers();
     } catch (e) {
@@ -449,7 +531,8 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     }
   };
 
-  const handleDeleteUser = async (targetMobile: string) => {
+  const handleDeleteUser = async (targetUser: User) => {
+    const targetMobile = targetUser.mobile;
     setErrorMsg("");
     setSuccessMsg("");
     if (targetMobile === user.mobile) {
@@ -459,10 +542,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
     
     confirmAction(
       "Permanently Delete User",
-      "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible.",
+      isRealFirebase
+        ? "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible. (Their login account may remain orphaned.)"
+        : "Are you sure you want to permanently delete this user? This action is highly destructive and irreversible.",
       async () => {
         try {
-          await FirebaseService.deleteUser(targetMobile);
+          await FirebaseService.deleteUser(userDocId(targetUser));
           setSuccessMsg("Account successfully discarded.");          loadUsers();
         } catch (e) {
           setErrorMsg("Failed to delete account from system.");
@@ -1429,6 +1514,79 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                 )}
               </div>
 
+              {/* Secure Auth migration (super admin, one-time, BEFORE publishing secure rules) */}
+              {isSuperAdmin && isRealFirebase && (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-white flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-amber-400" /> Secure Auth Migration
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                        Creates Firebase Auth logins + UID-keyed profiles for legacy accounts.
+                        Run <strong>before</strong> publishing firestore.rules.secure. Weak passwords get auto-reset (noted below — redistribute them).
+                      </p>
+                    </div>
+                    <button
+                      onClick={runMigration}
+                      disabled={migRunning}
+                      className="shrink-0 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 px-5 min-h-[44px] text-sm font-bold text-slate-950 transition-all cursor-pointer"
+                    >
+                      {migRunning ? `Migrating ${migDone}/${migTotal}...` : "Run Migration"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        confirmAction(
+                          "Delete Legacy Docs",
+                          "Delete old mobile-keyed account copies? Only do this after migration verified + strict rules published. New UID accounts stay untouched.",
+                          async () => {
+                            setErrorMsg("");
+                            setSuccessMsg("");
+                            setCleanupRunning(true);
+                            try {
+                              const res = await cleanupLegacyUserDocs();
+                              setSuccessMsg(`Cleanup done: ${res.deleted} legacy docs deleted, ${res.kept} secure accounts kept.`);
+                              loadUsers();
+                            } catch (e: any) {
+                              setErrorMsg(e?.message || "Cleanup failed.");
+                            } finally {
+                              setCleanupRunning(false);
+                            }
+                          },
+                          "Delete Legacy"
+                        );
+                      }}
+                      disabled={migRunning || cleanupRunning}
+                      className="shrink-0 rounded-xl px-5 min-h-[44px] text-sm font-bold glass-btn-danger disabled:opacity-50 cursor-pointer"
+                    >
+                      {cleanupRunning ? "Cleaning..." : "Cleanup Legacy Docs"}
+                    </button>
+                  </div>
+                  {migRunning && (
+                    <div className="w-full bg-slate-950/60 rounded-full h-2 overflow-hidden border border-white/5">
+                      <div className="bg-amber-500 h-full transition-all duration-300" style={{ width: migTotal ? `${Math.round((migDone / migTotal) * 100)}%` : "0%" }} />
+                    </div>
+                  )}
+                  {migResults.length > 0 && (
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                      {migResults.map(r => (
+                        <div key={r.mobile} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 rounded-lg border border-white/5 bg-slate-950/60 px-3 py-2 text-xs">
+                          <span className="font-mono font-bold text-slate-200">{r.mobile}</span>
+                          <span className="text-slate-500 truncate">{r.name}</span>
+                          <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                            r.status === "created" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                          }`}>{r.status}</span>
+                          <span className="text-slate-400 truncate">{r.note}</span>
+                          {r.tempPassword && (
+                            <span className="font-mono font-bold text-amber-300 select-all">new pass: {r.tempPassword}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {showUserForm ? (
                 <div className="bg-[#1A1D24] p-6 rounded-2xl border border-white/5 shadow-2xl">
                   <div className="flex items-center justify-between mb-6">
@@ -1585,7 +1743,7 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                                 )}
 
                                 <button
-                                  onClick={() => handleDeleteUser(u.mobile)}
+                                  onClick={() => handleDeleteUser(u)}
                                   disabled={isSelf}
                                   aria-label={`Delete user ${u.name}`}
                                   className="flex items-center justify-center p-2.5 min-h-[44px] min-w-[44px] rounded-md bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white text-rose-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1730,10 +1888,15 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
                     value={editUserMobile}
                     onChange={(e) => setEditUserMobile(e.target.value.trim())}
                     placeholder="E.g., 9876543210"
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono"
+                    disabled={isRealFirebase}
+                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-teal-500 font-mono disabled:opacity-60"
                     required
                   />
-                  <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono"><AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" /> Modifying this updates document index references dynamically.</span>
+                  <span className="text-[9px] text-slate-500 block font-mono">
+                    {isRealFirebase
+                      ? "Locked: mobile number is the secure login identity."
+                      : "⚠️ Modifying this updates document index references dynamically."}
+                  </span>
                 </div>
 
                 <div className="space-y-1">

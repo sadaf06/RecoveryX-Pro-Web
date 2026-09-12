@@ -1,0 +1,195 @@
+rules_version = '2';
+
+// ============================================================
+// SECURE RULES — Firebase Auth (email/password, UID-keyed users)
+// DO NOT PUBLISH until: Auth provider enabled + migration complete.
+// Cutover order: 1) enable Email/Password in console 2) run in-app
+// migration (super admin) 3) publish THIS file 4) update all apps.
+// ============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- helpers (requester profile from UID-keyed user doc) ---
+    function signedIn() {
+      return request.auth != null;
+    }
+    function myUid() {
+      return request.auth.uid;
+    }
+    function myDoc() {
+      return get(/databases/$(database)/documents/users/$(myUid())).data;
+    }
+    function myRole() {
+      return myDoc().role;
+    }
+    function myMobile() {
+      return myDoc().mobile;
+    }
+    function isSuper() {
+      return myRole() == 'SUPER_ADMIN' || myMobile() == 'admin';
+    }
+    function isAdmin() {
+      return myRole() == 'ADMIN' || isSuper();
+    }
+    // Data scope: super sees all, admin sees own tree, agent sees creator tree
+    function scopeMobile() {
+      return myRole() == 'ADMIN' || isSuper() ? myMobile() : myDoc().creator_mobile;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'mobile', 'password', 'role', 'status', 'is_first_time', 'creator_mobile']) &&
+             data.name is string && data.name.size() <= 128 &&
+             data.mobile is string && data.mobile.size() <= 15 &&
+             data.password is string && data.password.size() <= 128 &&
+             data.role in ['SUPER_ADMIN', 'ADMIN', 'OFFICE_STAFF', 'NORMAL_USER'] &&
+             data.status in ['ACTIVE', 'DISABLED'] &&
+             data.creator_mobile is string && data.creator_mobile.size() <= 128;
+    }
+
+    function isValidVehicle(data) {
+      return data.keys().hasAll(['registration_number', 'owner', 'model', 'status', 'bank_name', 'creator_mobile', 'file_name']) &&
+             data.registration_number is string && data.registration_number.size() <= 30 &&
+             data.owner is string && data.owner.size() <= 128 &&
+             data.model is string && data.model.size() <= 128 &&
+             data.status is string && data.status.size() <= 30 &&
+             data.bank_name is string && data.bank_name.size() <= 128 &&
+             data.creator_mobile is string && data.creator_mobile.size() <= 30 &&
+             data.file_name is string && data.file_name.size() <= 128;
+    }
+
+    function isValidUploadedFile(data) {
+      return data.keys().hasAll(['file_name', 'admin_mobile', 'uploaded_at', 'record_count']) &&
+             data.file_name is string && data.file_name.size() <= 128 &&
+             data.admin_mobile is string && data.admin_mobile.size() <= 30 &&
+             data.record_count is int;
+    }
+
+    function isValidSearchHistory(data) {
+      return data.keys().hasAll(['user_mobile', 'user_name', 'vehicle_number', 'model', 'timestamp', 'creator_mobile']) &&
+             data.user_mobile is string && data.user_mobile.size() <= 30 &&
+             data.user_name is string && data.user_name.size() <= 128 &&
+             data.vehicle_number is string && data.vehicle_number.size() <= 30 &&
+             data.model is string && data.model.size() <= 128 &&
+             data.timestamp is string && data.timestamp.size() <= 64 &&
+             data.creator_mobile is string && data.creator_mobile.size() <= 30;
+    }
+
+    function isValidFieldPermissions(data) {
+      return data.keys().hasAll(['role_string', 'role', 'show_customer_name', 'show_vehicle_number', 'show_bank_name', 'show_pos', 'show_emi', 'show_engine_number', 'show_chassis_number', 'show_confirmer_name', 'show_loan_no']) &&
+             data.role_string is string && data.role_string.size() <= 128 &&
+             data.role in ['NORMAL_USER', 'ADMIN'] &&
+             data.show_customer_name is bool &&
+             data.show_vehicle_number is bool &&
+             data.show_bank_name is bool &&
+             data.show_pos is bool &&
+             data.show_emi is bool &&
+             data.show_engine_number is bool &&
+             data.show_chassis_number is bool &&
+             data.show_confirmer_name is bool &&
+             data.show_loan_no is bool;
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll(['admin_mobile', 'plan_name', 'starts_at', 'expires_at', 'status']) &&
+             data.admin_mobile is string && data.admin_mobile.size() <= 30 &&
+             data.plan_name is string && data.plan_name.size() <= 30 &&
+             data.starts_at is number &&
+             data.expires_at is number &&
+             data.status in ['ACTIVE', 'EXPIRED'];
+    }
+
+    // --- users (doc ID = Auth UID) ---
+    match /users/{uid} {
+      // read own / admin-tree / super
+      allow get: if signedIn() && (
+        myUid() == uid ||
+        isSuper() ||
+        (myRole() == 'ADMIN' && (resource.data.creator_mobile == myMobile() || resource.data.mobile == myMobile()))
+      );
+      allow list: if signedIn() && (
+        isSuper() ||
+        (myRole() == 'ADMIN' && (resource.data.creator_mobile == myMobile() || resource.data.mobile == myMobile())) ||
+        resource.data.mobile == myMobile()
+      );
+      // create: super any; admin only staff/agent under self
+      allow create: if signedIn() && isValidUser(request.resource.data) && (
+        isSuper() ||
+        (myRole() == 'ADMIN' &&
+         request.resource.data.creator_mobile == myMobile() &&
+         request.resource.data.role in ['NORMAL_USER', 'OFFICE_STAFF'])
+      );
+      // update: super any; admin scoped (never touch super docs, never grant SUPER_ADMIN);
+      // agents may only flip own first-time/device fields (OTP + bind flow)
+      allow update: if signedIn() && (
+        isSuper() ||
+        (myRole() == 'ADMIN' &&
+         resource.data.creator_mobile == myMobile() &&
+         resource.data.role != 'SUPER_ADMIN' &&
+         request.resource.data.role != 'SUPER_ADMIN') ||
+        (myUid() == uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_first_time', 'registered_device_id']))
+      );
+      // delete: super (not self); admin scoped non-super, not self
+      allow delete: if signedIn() && (
+        (isSuper() && myUid() != uid) ||
+        (myRole() == 'ADMIN' && myUid() != uid &&
+         resource.data.creator_mobile == myMobile() &&
+         resource.data.role != 'SUPER_ADMIN')
+      );
+    }
+
+    // --- vehicles ---
+    match /vehicles/{vehicleId} {
+      allow get, list: if signedIn() && (
+        isSuper() || resource.data.creator_mobile == scopeMobile()
+      );
+      allow create: if signedIn() && isValidVehicle(request.resource.data) && (
+        isSuper() || request.resource.data.creator_mobile == myMobile()
+      );
+      allow update, delete: if signedIn() && (
+        isSuper() || resource.data.creator_mobile == scopeMobile()
+      );
+    }
+
+    // --- uploaded files ---
+    match /uploaded_files/{fileId} {
+      allow get, list: if signedIn() && (
+        isSuper() || resource.data.admin_mobile == scopeMobile()
+      );
+      allow create: if signedIn() && isValidUploadedFile(request.resource.data) && (
+        isSuper() || request.resource.data.admin_mobile == myMobile()
+      );
+      allow update, delete: if signedIn() && (
+        isSuper() || resource.data.admin_mobile == scopeMobile()
+      );
+    }
+
+    // --- search histories ---
+    match /search_histories/{historyId} {
+      allow get, list: if signedIn() && (
+        isSuper() || resource.data.creator_mobile == scopeMobile()
+      );
+      allow create: if signedIn() && isValidSearchHistory(request.resource.data);
+      allow update, delete: if signedIn() && (
+        isSuper() || resource.data.creator_mobile == scopeMobile()
+      );
+    }
+
+    // --- field permissions ---
+    match /field_permissions/{permId} {
+      allow get, list: if signedIn();
+      allow create, update: if signedIn() && isValidFieldPermissions(request.resource.data) && (
+        isSuper() ||
+        (myRole() == 'ADMIN' && request.resource.data.role_string == 'NORMAL_USER_' + myMobile())
+      );
+      allow delete: if signedIn() && isSuper();
+    }
+
+    // --- subscriptions (recharge: super-admin only writes) ---
+    match /subscriptions/{adminMobile} {
+      allow get: if signedIn() && (isSuper() || adminMobile == scopeMobile());
+      allow list: if signedIn() && (isSuper() || resource.data.admin_mobile == scopeMobile());
+      allow create, update, delete: if signedIn() && isSuper();
+    }
+  }
+}

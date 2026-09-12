@@ -5,7 +5,16 @@
 
 import React, { useState } from "react";
 import { User } from "../types";
-import { FirebaseService, checkUserSubscription, getWebDeviceId, isDeviceLockExempt, needsDeviceBind } from "../firebase";
+import {
+  FirebaseService,
+  checkUserSubscription,
+  getWebDeviceId,
+  isDeviceLockExempt,
+  needsDeviceBind,
+  isRealFirebase,
+  authLogin,
+  userDocId,
+} from "../firebase";
 import { Shield, Smartphone, Key, RefreshCw, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -30,7 +39,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usernameOrMobile.trim() || !password.trim()) {
-      setError("Please fill in both username/mobile and password.");
+      setError("Please fill in both mobile number and password.");
       return;
     }
 
@@ -38,28 +47,31 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
     setError("");
 
     try {
-      // Look up user in the firebase/local database
-      const users = await FirebaseService.getUsers();
-      const matched = users.find(u => 
-        (u.mobile || "").trim().toLowerCase() === usernameOrMobile.trim().toLowerCase() ||
-        (u.name || "").trim().toLowerCase() === usernameOrMobile.trim().toLowerCase()
-      );
-
-      if (!matched) {
-        setError("Account not found. Please verify your username or mobile number.");
-        setLoading(false);
-        return;
+      // Secure mode: Firebase Auth (mobile number + password). Demo mode: legacy local check.
+      let matched: User;
+      if (isRealFirebase) {
+        const res = await authLogin(usernameOrMobile.trim(), password.trim());
+        matched = res.profile;
+      } else {
+        const users = await FirebaseService.getUsers();
+        const found = users.find(u =>
+          (u.mobile || "").trim() === usernameOrMobile.trim()
+        );
+        if (!found) {
+          setError("Account not found. Please verify your mobile number.");
+          setLoading(false);
+          return;
+        }
+        if (found.password !== password.trim()) {
+          setError("Incorrect password. Please try again.");
+          setLoading(false);
+          return;
+        }
+        matched = found;
       }
 
       if (matched.status === "DISABLED") {
         setError("This account has been disabled. Please contact your administrator.");
-        setLoading(false);
-        return;
-      }
-
-      // Plain/Mock password verification (in live, mapped securely or checked)
-      if (matched.password !== password.trim()) {
-        setError("Incorrect password. Please try again.");
         setLoading(false);
         return;
       }
@@ -89,7 +101,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
         // Auto-bind browser on login when unbound (or legacy mock ID)
         if (!isDeviceLockExempt(matched) && needsDeviceBind(matched)) {
           try {
-            await FirebaseService.updateUser(matched.mobile, { registered_device_id: webDeviceId });
+            await FirebaseService.updateUser(userDocId(matched), { registered_device_id: webDeviceId });
             onLoginSuccess({ ...matched, registered_device_id: webDeviceId });
           } catch (e) {
             console.error("Device bind failed", e);
@@ -129,7 +141,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
         if (!isDeviceLockExempt(pendingUser)) {
           updates.registered_device_id = getWebDeviceId();
         }
-        await FirebaseService.updateUser(pendingUser.mobile, updates);
+        await FirebaseService.updateUser(userDocId(pendingUser), updates);
 
         setSuccessMsg("Device verified successfully! Signing you in...");
         
@@ -187,7 +199,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
             >
               <div>
                 <label htmlFor="login-mobile-input" className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
-                  Username or Mobile
+                  {isRealFirebase ? "Mobile Number" : "Username or Mobile"}
                 </label>
                 <div className="relative mt-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
@@ -200,7 +212,7 @@ export default function LoginScreen({ onLoginSuccess, initialError }: LoginScree
                     value={usernameOrMobile}
                     onChange={(e) => setUsernameOrMobile(e.target.value)}
                     className="block w-full py-3 pl-10 pr-3 text-sm text-white placeholder-slate-600 outline-none transition-all glass-input font-mono"
-                    placeholder="Enter username or mobile"
+                    placeholder={isRealFirebase ? "Enter mobile number" : "Enter username or mobile"}
                     disabled={loading}
                     autoFocus
                   />

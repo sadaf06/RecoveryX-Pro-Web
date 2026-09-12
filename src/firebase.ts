@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
+import { initializeApp, getApp, getApps, deleteApp, FirebaseApp } from "firebase/app";
 import { 
   getFirestore, 
   initializeFirestore,
@@ -31,7 +31,7 @@ import {
   limit,
   Firestore
 } from "firebase/firestore";
-import { getAuth, Auth } from "firebase/auth";
+import { getAuth, Auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword, signOut, onAuthStateChanged } from "firebase/auth";
 import { 
   User as DBUser, 
   Vehicle, 
@@ -454,12 +454,16 @@ export const FirebaseService = {
   },
 
   // Users Auth / Session Operations
+  // Secure mode: doc ID = Auth UID. Mock mode: doc ID = mobile (legacy).
   getUsers: async (): Promise<DBUser[]> => {
     if (isRealFirebase && dbInstance) {
       const path = 'users';
       try {
         const snap = await getDocs(collection(dbInstance, path));
-        return snap.docs.map(d => ({ mobile: d.id, ...d.data() } as DBUser));
+        return snap.docs.map(d => {
+          const data = d.data() as any;
+          return { ...data, uid: d.id, mobile: data.mobile || d.id } as DBUser;
+        });
       } catch (e) {
         handleFirestoreError(e, OperationType.LIST, path);
       }
@@ -469,10 +473,11 @@ export const FirebaseService = {
   },
 
   addUser: async (user: DBUser): Promise<void> => {
+    const docId = (isRealFirebase && (user as any).uid) ? (user as any).uid as string : user.mobile;
     if (isRealFirebase && dbInstance) {
-      const path = `users/${user.mobile}`;
+      const path = `users/${docId}`;
       try {
-        await setDoc(doc(dbInstance, 'users', user.mobile), user);
+        await setDoc(doc(dbInstance, 'users', docId), user);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, path);
       }
@@ -485,32 +490,32 @@ export const FirebaseService = {
     }
   },
 
-  updateUser: async (mobile: string, updates: Partial<DBUser>): Promise<void> => {
+  updateUser: async (docId: string, updates: Partial<DBUser>): Promise<void> => {
     if (isRealFirebase && dbInstance) {
-      const path = `users/${mobile}`;
+      const path = `users/${docId}`;
       try {
-        await updateDoc(doc(dbInstance, 'users', mobile), updates as any);
+        await updateDoc(doc(dbInstance, 'users', docId), updates as any);
       } catch (e) {
         handleFirestoreError(e, OperationType.UPDATE, path);
       }
     } else {
       const users = getLocalCollection<DBUser>("users", DEFAULT_USERS_SEED);
-      const updated = users.map(u => u.mobile === mobile ? { ...u, ...updates } : u);
+      const updated = users.map(u => u.mobile === docId ? { ...u, ...updates } : u);
       saveLocalCollection("users", updated);
     }
   },
 
-  deleteUser: async (mobile: string): Promise<void> => {
+  deleteUser: async (docId: string): Promise<void> => {
     if (isRealFirebase && dbInstance) {
-      const path = `users/${mobile}`;
+      const path = `users/${docId}`;
       try {
-        await deleteDoc(doc(dbInstance, 'users', mobile));
+        await deleteDoc(doc(dbInstance, 'users', docId));
       } catch (e) {
         handleFirestoreError(e, OperationType.DELETE, path);
       }
     } else {
       const users = getLocalCollection<DBUser>("users", DEFAULT_USERS_SEED);
-      const filtered = users.filter(u => u.mobile !== mobile);
+      const filtered = users.filter(u => u.mobile !== docId);
       saveLocalCollection("users", filtered);
     }
   },
@@ -1031,6 +1036,279 @@ export function isDeviceLockExempt(user: DBUser): boolean {
 export function needsDeviceBind(user: DBUser): boolean {
   const id = user.registered_device_id || "";
   return id === "" || id.startsWith("WEB_AGENT_CHROME_MOCK_");
+}
+// -------------------------------------------------------------
+// 7. FIREBASE AUTH (secure mode: UID-keyed users, synthetic emails)
+// -------------------------------------------------------------
+export function userDocId(u: { uid?: string; mobile: string }): string {
+  return isRealFirebase && u.uid ? u.uid : u.mobile;
+}
+
+export function syntheticEmail(mobile: string): string {
+  return `${mobile.trim()}@recoveryx.app`;
+}
+
+// Resolves once Firebase Auth finishes restoring its persisted session
+export function authReady(): Promise<void> {
+  if (!authInstance) return Promise.resolve();
+  const current = authInstance.currentUser;
+  if (current) return Promise.resolve();
+  return new Promise(resolve => {
+    const unsub = onAuthStateChanged(authInstance!, () => {
+      unsub();
+      resolve();
+    });
+    // Safety timeout: never block login longer than 4s
+    setTimeout(() => {
+      try { unsub(); } catch (e) {}
+      resolve();
+    }, 4000);
+  });
+}
+
+export interface AuthLoginResult {
+  uid: string;
+  profile: DBUser;
+}
+
+export async function authLogin(mobile: string, password: string): Promise<AuthLoginResult> {
+  if (!isRealFirebase || !authInstance || !dbInstance) {
+    throw new Error("Secure auth unavailable in demo mode.");
+  }
+  const cleanMobile = mobile.trim();
+  const cleanPass = password.trim();
+  let uid: string;
+  try {
+    const cred = await signInWithEmailAndPassword(authInstance, syntheticEmail(cleanMobile), cleanPass);
+    uid = cred.user.uid;
+  } catch (e: any) {
+    const code: string = e?.code || "";
+    if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+      // Pre-migration bootstrap: no Auth account yet — fall back to legacy
+      // mobile+password check (works only while rules still allow reads).
+      // Dies automatically once strict rules are published.
+      try {
+        const snap = await getDocs(collection(dbInstance!, "users"));
+        const found = snap.docs.map(d => ({ ...(d.data() as any), __docId: d.id }));
+        const match = found.find(u =>
+          ((u.mobile || "") as string).trim() === cleanMobile ||
+          ((u.mobile || "") as string).trim().toLowerCase() === cleanMobile.toLowerCase()
+        ) as any;
+        if (match && ((match.password || "") as string).trim() === cleanPass) {
+          return {
+            uid: "",
+            profile: {
+              name: match.name || cleanMobile,
+              mobile: match.mobile || cleanMobile,
+              password: match.password,
+              role: match.role || "NORMAL_USER",
+              status: match.status || "ACTIVE",
+              registered_device_id: match.registered_device_id || "",
+              is_first_time: !!match.is_first_time,
+              creator_mobile: match.creator_mobile || cleanMobile,
+            } as DBUser,
+          };
+        }
+      } catch (err) {
+        // Legacy lookup blocked (strict rules live) — fall through to error below
+      }
+      throw new Error("Account not found. Please verify your mobile number.");
+    }
+    if (code === "auth/wrong-password") {
+      throw new Error("Incorrect password. Please try again.");
+    }
+    if (code === "auth/too-many-requests") {
+      throw new Error("Too many attempts. Try again later.");
+    }
+    if (code === "auth/user-disabled") {
+      throw new Error("This account has been disabled. Please contact your administrator.");
+    }
+    throw new Error("Authentication failed. Please retry.");
+  }
+  const snap = await getDoc(doc(dbInstance, "users", uid));
+  if (!snap.exists()) {
+    try { await signOut(authInstance); } catch (e) {}
+    throw new Error("Account not migrated yet. Contact Super Admin.");
+  }
+  const data = snap.data() as any;
+  return { uid: snap.id, profile: { ...data, uid: snap.id, mobile: data.mobile || mobile } as DBUser };
+}
+
+// Separate Auth instance so creating/resetting accounts never disturbs
+// the admin's own session.
+function secondaryAuth(): Auth {
+  if (!firebaseApp) throw new Error("Firebase not initialized.");
+  const name = "recoveryx-secondary";
+  const existing = getApps().find(a => a.name === name);
+  const app = existing || initializeApp({
+    apiKey: (firebaseApp.options as any).apiKey,
+    authDomain: (firebaseApp.options as any).authDomain,
+    projectId: (firebaseApp.options as any).projectId,
+    storageBucket: (firebaseApp.options as any).storageBucket,
+    messagingSenderId: (firebaseApp.options as any).messagingSenderId,
+    appId: (firebaseApp.options as any).appId,
+  }, name);
+  return getAuth(app);
+}
+
+export async function createAuthUser(mobile: string, password: string): Promise<string> {
+  const sAuth = secondaryAuth();
+  try {
+    const cred = await createUserWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
+    const uid = cred.user.uid;
+    await signOut(sAuth);
+    return uid;
+  } catch (e: any) {
+    try { await signOut(sAuth); } catch (err) {}
+    if (e?.code === "auth/email-already-in-use") {
+      throw new Error("Auth account already exists for this mobile (previously deleted?).");
+    }
+    throw new Error(e?.message || "Failed to create auth account.");
+  }
+}
+
+// Admin-side password reset: sign in as the user on the secondary instance
+// (using the current password on record), set the new one, sign out.
+export async function resetAuthPassword(mobile: string, oldPassword: string, newPassword: string): Promise<void> {
+  const sAuth = secondaryAuth();
+  try {
+    const cred = await signInWithEmailAndPassword(sAuth, syntheticEmail(mobile), oldPassword);
+    await updatePassword(cred.user, newPassword);
+  } catch (e: any) {
+    const code: string = e?.code || "";
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+      throw new Error("Could not verify current password in Auth. Password not changed there.");
+    }
+    throw new Error(e?.message || "Auth password reset failed.");
+  } finally {
+    try { await signOut(sAuth); } catch (err) {}
+  }
+}
+
+// Best-effort cleanup of an Auth account (used for create rollback).
+// Only works right after creation while credentials are known.
+export async function deleteAuthUser(mobile: string, password: string): Promise<void> {
+  const sAuth = secondaryAuth();
+  try {
+    const cred = await signInWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
+    await cred.user.delete();
+  } finally {
+    try { await signOut(sAuth); } catch (err) {}
+  }
+}
+
+export function authLogout(): Promise<void> {
+  if (!authInstance) return Promise.resolve();
+  return signOut(authInstance).catch(() => {});
+}
+
+function randomTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  const arr = new Uint32Array(8);
+  (window.crypto || (window as any).msCrypto).getRandomValues(arr);
+  for (let i = 0; i < 8; i++) out += chars[arr[i] % chars.length];
+  return out;
+}
+
+export interface MigrationResult {
+  mobile: string;
+  name: string;
+  status: "created" | "failed";
+  note: string;
+  tempPassword?: string;
+}
+
+// Post-cutover cleanup: delete legacy mobile-keyed docs (no uid field).
+// Run only after migration verified + strict rules published.
+export async function cleanupLegacyUserDocs(
+  onProgress?: (done: number, total: number) => void
+): Promise<{ deleted: number; kept: number }> {
+  if (!isRealFirebase || !dbInstance) {
+    throw new Error("Needs real Firebase.");
+  }
+  const snap = await getDocs(collection(dbInstance, "users"));
+  let deleted = 0;
+  let kept = 0;
+  let done = 0;
+  for (const d of snap.docs) {
+    const data = d.data() as any;
+    if (!data.uid && !data.auth_uid) {
+      await deleteDoc(d.ref);
+      deleted++;
+    } else {
+      kept++;
+    }
+    done++;
+    try { onProgress?.(done, snap.size); } catch (err) {}
+  }
+  return { deleted, kept };
+}
+
+// One-time migration (super admin, BEFORE publishing secure rules):
+// legacy mobile-keyed docs -> Auth accounts + UID-keyed docs.
+// Weak (<6 char) passwords are auto-reset; temp passwords are reported once.
+export async function migrateLegacyUsers(
+  onProgress?: (done: number, total: number) => void
+): Promise<MigrationResult[]> {
+  if (!isRealFirebase || !dbInstance) {
+    throw new Error("Migration needs real Firebase.");
+  }
+  const snap = await getDocs(collection(dbInstance, "users"));
+  const legacy = snap.docs.filter(d => {
+    const data = d.data() as any;
+    return !data.uid && !data.auth_uid;
+  });
+  const results: MigrationResult[] = [];
+  let done = 0;
+  for (const d of legacy) {
+    const data = d.data() as any;
+    const mobile: string = (data.mobile || d.id || "").trim();
+    const name: string = data.name || mobile;
+    try {
+      if (!mobile) throw new Error("Missing mobile.");
+      let password: string = ((data.password || "") as string).trim();
+      let temp: string | undefined;
+      if (!/^[A-Za-z0-9]{6,}$/.test(password)) {
+        password = randomTempPassword();
+        temp = password;
+      }
+      let uid: string;
+      try {
+        uid = await createAuthUser(mobile, password);
+      } catch (e: any) {
+        if (/already exists/.test(e?.message || "")) {
+          // Recover UID by signing in on the secondary instance
+          const sAuth = secondaryAuth();
+          const cred = await signInWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
+          uid = cred.user.uid;
+          await signOut(sAuth);
+        } else {
+          throw e;
+        }
+      }
+      await setDoc(doc(dbInstance!, "users", uid), {
+        ...data,
+        mobile,
+        password,
+        uid,
+        email: syntheticEmail(mobile),
+        auth_uid: uid,
+      });
+      results.push({
+        mobile,
+        name,
+        status: "created",
+        note: temp ? "Weak password auto-reset" : "Migrated",
+        tempPassword: temp,
+      });
+    } catch (e: any) {
+      results.push({ mobile, name, status: "failed", note: e?.message || "Failed" });
+    }
+    done++;
+    try { onProgress?.(done, legacy.length); } catch (err) {}
+  }
+  return results;
 }
 // -------------------------------------------------------------
 // 5. SUBSCRIPTION GATE (recharge khtm -> login band)

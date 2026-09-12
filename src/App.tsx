@@ -7,7 +7,8 @@
 
 import React, { useState, useEffect } from "react";
 import { User, FirebaseConnectionConfig } from "./types";
-import { FirebaseService, isRealFirebase, checkUserSubscription } from "./firebase";
+import { FirebaseService, isRealFirebase, checkUserSubscription, authReady, authLogout } from "./firebase";
+import { getAuth } from "firebase/auth";
 import LoginScreen from "./components/LoginScreen";
 import AgentView from "./components/AgentView";
 import StaffControlBoard from "./components/StaffControlBoard";
@@ -83,6 +84,16 @@ export default function App() {
   useEffect(() => {
     document.title = "RecoveryX Pro";
     const restoreSession = async () => {
+      // Secure mode: Firebase Auth session must exist, else force re-login
+      if (isRealFirebase) {
+        await authReady();
+        const fbUser = getAuth().currentUser;
+        if (!fbUser) {
+          localStorage.removeItem("ACTIVE_USER_SESSION");
+          setAuthLoading(false);
+          return;
+        }
+      }
       const cachedUser = localStorage.getItem("ACTIVE_USER_SESSION");
       if (cachedUser) {
         try {
@@ -93,6 +104,7 @@ export default function App() {
             setCurrentUser(parsed);
           } else {
             localStorage.removeItem("ACTIVE_USER_SESSION");
+            if (isRealFirebase) await authLogout();
             setLoginError("No active subscription. Please recharge to continue.");
           }
         } catch (e) {
@@ -132,6 +144,9 @@ export default function App() {
     // 1. Clear session
     setCurrentUser(null);
     sessionStorage.clear();
+    if (isRealFirebase) {
+      authLogout();
+    }
 
     // 2. Clear caches and LocalStorage
     // We clear all vehicle logs, search histories, permissions caches and credentials
