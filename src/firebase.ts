@@ -1145,19 +1145,33 @@ function secondaryAuth(): Auth {
 
 export async function createAuthUser(mobile: string, password: string, scopePack?: string): Promise<string> {
   const sAuth = secondaryAuth();
+  const applyScope = async (uidUser: { uid: string } & { [k: string]: any }) => {
+    if (scopePack) {
+      try { await updateProfile(uidUser as any, { displayName: scopePack }); } catch (e) {}
+    }
+  };
   try {
     const cred = await createUserWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
     const uid = cred.user.uid;
-    if (scopePack) {
-      try { await updateProfile(cred.user, { displayName: scopePack }); } catch (e) {}
-    }
+    await applyScope(cred.user);
     await signOut(sAuth);
     return uid;
   } catch (e: any) {
-    try { await signOut(sAuth); } catch (err) {}
     if (e?.code === "auth/email-already-in-use") {
-      throw new Error("Auth account already exists for this mobile (previously deleted?).");
+      // Orphaned Auth account (doc deleted earlier): adopt it by proving the
+      // SAME password. Fails safely if passwords differ.
+      try {
+        const cred = await signInWithEmailAndPassword(sAuth, syntheticEmail(mobile), password);
+        const uid = cred.user.uid;
+        await applyScope(cred.user);
+        await signOut(sAuth);
+        return uid;
+      } catch (err) {
+        try { await signOut(sAuth); } catch (ignored) {}
+        throw new Error("Auth account exists with a different password. Delete it from Firebase Console → Authentication, then retry.");
+      }
     }
+    try { await signOut(sAuth); } catch (err) {}
     throw new Error(e?.message || "Failed to create auth account.");
   }
 }

@@ -557,6 +557,12 @@ export default function StaffControlBoard({ user, onLogout }: StaffControlBoardP
       return;
     }
 
+    // True duplicate: doc already exists (orphan Auth adoption is handled inside create)
+    if (usersList.some(u => u.mobile === mobileTrimmed)) {
+      setErrorMsg("This mobile number is already registered.");
+      return;
+    }
+
     try {
       const newUserObj: User = {
         name: newUserName.trim(),
